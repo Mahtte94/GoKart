@@ -158,7 +158,7 @@ const Gokart: React.FC = () => {
       onClick={() => setIsFocused(true)}
     >
       <div 
-        className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md transition-all duration-100 ease-in-out"
+        className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md"
         style={{ 
           transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
         }}
