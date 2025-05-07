@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import './App.css'
-import Gokart from './components/gokart'
+import Gokart from './components/Gokart'
 
 
 function App() {
