@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-
+import React, { useState, useEffect, useRef } from "react";
 
 interface Position {
   x: number;
@@ -12,7 +11,6 @@ interface KeyState {
   ArrowDown: boolean;
   ArrowLeft: boolean;
   ArrowRight: boolean;
- 
 }
 
 interface Boundaries {
@@ -23,22 +21,24 @@ interface Boundaries {
 }
 
 const Gokart: React.FC = () => {
-
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState<Position>({ x: 50, y: 50, rotation: 0 });
+  const [position, setPosition] = useState<Position>({
+    x: 50,
+    y: 50,
+    rotation: 0,
+  });
   const [speed] = useState<number>(5);
-  const [rotationSpeed] = useState<number>(5); 
+  const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
-    maxX: 1216,
+    maxX: window.innerWidth,
     minY: 0,
-    maxY: 320,
+    maxY: window.innerHeight,
   });
-
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -48,50 +48,47 @@ const Gokart: React.FC = () => {
           minX: 0,
           maxX: containerRect.width - rectangleSize.width,
           minY: 0,
-          maxY: containerRect.height - rectangleSize.height
+          maxY: containerRect.height - rectangleSize.height,
         });
       }
     };
 
     updateBoundaries();
-   
-    window.addEventListener('resize', updateBoundaries);
-    
+
+    window.addEventListener("resize", updateBoundaries);
+
     return () => {
-      window.removeEventListener('resize', updateBoundaries);
+      window.removeEventListener("resize", updateBoundaries);
     };
   }, []);
-  
+
   const keyState = useRef<KeyState>({
     ArrowUp: false,
     ArrowDown: false,
     ArrowLeft: false,
     ArrowRight: false,
-  
   });
 
   useEffect(() => {
-   
     let animationFrameId: number;
-    
+
     const updatePosition = () => {
       if (isFocused) {
-        setPosition(prev => {
+        setPosition((prev) => {
           let newPos = { ...prev };
-          
-          
+
           if (keyState.current.ArrowLeft) {
             newPos.rotation = newPos.rotation - rotationSpeed;
           }
           if (keyState.current.ArrowRight) {
             newPos.rotation = newPos.rotation + rotationSpeed;
           }
-          
+
           const radians = (newPos.rotation * Math.PI) / 180;
 
           let potentialX = newPos.x;
           let potentialY = newPos.y;
-          
+
           if (keyState.current.ArrowUp) {
             potentialX += Math.sin(radians) * speed;
             potentialY -= Math.cos(radians) * speed;
@@ -100,76 +97,74 @@ const Gokart: React.FC = () => {
             potentialX -= Math.sin(radians) * speed;
             potentialY += Math.cos(radians) * speed;
           }
-          
-          newPos.x = Math.max(boundaries.minX, Math.min(boundaries.maxX, potentialX));
-          newPos.y = Math.max(boundaries.minY, Math.min(boundaries.maxY, potentialY));
 
-          
+          newPos.x = Math.max(
+            boundaries.minX,
+            Math.min(boundaries.maxX, potentialX)
+          );
+          newPos.y = Math.max(
+            boundaries.minY,
+            Math.min(boundaries.maxY, potentialY)
+          );
+
           return newPos;
         });
       }
-      
-     
+
       animationFrameId = requestAnimationFrame(updatePosition);
     };
-    
-   
+
     animationFrameId = requestAnimationFrame(updatePosition);
-    
-  
+
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (!isFocused) return;
-      
-     
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         e.preventDefault();
-        
-       
+
         if (e.key in keyState.current) {
           keyState.current[e.key as keyof KeyState] = true;
         }
       }
     };
-    
+
     const handleKeyUp = (e: KeyboardEvent): void => {
       if (e.key in keyState.current) {
         keyState.current[e.key as keyof KeyState] = false;
       }
     };
-    
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-   
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused]); 
-  
+  }, [speed, rotationSpeed, isFocused, boundaries]);
+
   return (
-    <div 
+    <div
+      ref={containerRef}
       className="relative w-full h-96 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       onClick={() => setIsFocused(true)}
     >
-      <div 
+      <div
         className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md"
-        style={{ 
+        style={{
           transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
         }}
       >
-       
         <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
       </div>
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {isFocused ? 
-          "Use arrow keys to move" : 
-          "Click on the area to enable keyboard controls"}
+        {isFocused
+          ? "Use arrow keys to move"
+          : "Click on the area to enable keyboard controls"}
       </div>
     </div>
   );
