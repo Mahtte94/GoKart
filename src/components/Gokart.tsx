@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import GoKartSprite from "./GoKartSprite";
 
 interface Position {
   x: number;
@@ -153,14 +154,11 @@ const Gokart: React.FC = () => {
       onBlur={() => setIsFocused(false)}
       onClick={() => setIsFocused(true)}
     >
-      <div
-        className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md"
-        style={{
-          transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
-        }}
-      >
-        <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
-      </div>
+      <GoKartSprite
+        x={position.x}
+        y={position.y}
+        rotation={position.rotation}
+      />
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
         {isFocused
           ? "Use arrow keys to move"
