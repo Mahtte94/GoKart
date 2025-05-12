@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-
-interface Position {
-  x: number;
-  y: number;
-  rotation: number;
-}
-
 interface KeyState {
   ArrowUp: boolean;
   ArrowDown: boolean;
   ArrowLeft: boolean;
   ArrowRight: boolean;
- 
 }
 
 interface Boundaries {
@@ -23,11 +15,11 @@ interface Boundaries {
 }
 
 const Gokart: React.FC = () => {
-
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Use HTMLElement instead of HTMLDivElement for more flexibility
+  const containerRef = useRef<HTMLElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState<Position>({ x: 50, y: 50, rotation: 0 });
+  const [position, setPosition] = useState({ x: 50, y: 50, rotation: 0 });
   const [speed] = useState<number>(5);
   const [rotationSpeed] = useState<number>(5); 
   const [isFocused, setIsFocused] = useState<boolean>(false);
@@ -38,7 +30,6 @@ const Gokart: React.FC = () => {
     minY: 0,
     maxY: 320,
   });
-
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -67,18 +58,49 @@ const Gokart: React.FC = () => {
     ArrowDown: false,
     ArrowLeft: false,
     ArrowRight: false,
-  
   });
 
   useEffect(() => {
-   
+    const checkFocus = () => {
+      if (document.activeElement === containerRef.current) {
+        setIsFocused(true);
+      } else {
+        let element = containerRef.current?.parentElement;
+        let parentHasFocus = false;
+        
+        while (element) {
+          if (element === document.activeElement) {
+            parentHasFocus = true;
+            break;
+          }
+          element = element.parentElement;
+        }
+        
+        setIsFocused(parentHasFocus);
+      }
+    };
+
+    checkFocus();
+    
+    const handleFocusIn = () => checkFocus();
+    const handleFocusOut = () => checkFocus();
+    
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
+
+  useEffect(() => {
     let animationFrameId: number;
     
     const updatePosition = () => {
       if (isFocused) {
         setPosition(prev => {
           let newPos = { ...prev };
-          
           
           if (keyState.current.ArrowLeft) {
             newPos.rotation = newPos.rotation - rotationSpeed;
@@ -103,28 +125,20 @@ const Gokart: React.FC = () => {
           
           newPos.x = Math.max(boundaries.minX, Math.min(boundaries.maxX, potentialX));
           newPos.y = Math.max(boundaries.minY, Math.min(boundaries.maxY, potentialY));
-
           
           return newPos;
         });
       }
       
-     
       animationFrameId = requestAnimationFrame(updatePosition);
     };
     
-   
     animationFrameId = requestAnimationFrame(updatePosition);
     
-  
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (!isFocused) return;
-      
-     
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
         
-       
         if (e.key in keyState.current) {
           keyState.current[e.key as keyof KeyState] = true;
         }
@@ -137,25 +151,22 @@ const Gokart: React.FC = () => {
       }
     };
     
-    
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
-   
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused]); 
+  }, [speed, rotationSpeed, isFocused, boundaries]); 
   
   return (
     <div 
+      ref={containerRef as React.RefObject<HTMLDivElement>}
       className="relative w-full h-96 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onClick={() => setIsFocused(true)}
+      style={{ outline: 'none' }} 
     >
       <div 
         className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md transition-all duration-100 ease-in-out"
@@ -163,13 +174,10 @@ const Gokart: React.FC = () => {
           transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
         }}
       >
-       
         <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
       </div>
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {isFocused ? 
-          "Use arrow keys to move" : 
-          "Click on the area to enable keyboard controls"}
+        {!isFocused && "Click on the area to enable keyboard controls"}
       </div>
     </div>
   );

@@ -1,35 +1,48 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import Gokart from './Gokart';
 import Timer from './Timer';
-
 
 type GameState = 'ready' | 'playing' | 'gameover';
 
 const GameController: React.FC = () => {
- 
-  const DEFAULT_TIME_LIMIT = 60; 
+  const DEFAULT_TIME_LIMIT = 60;
   
   const [gameState, setGameState] = useState<GameState>('ready');
   const [timeLimit, setTimeLimit] = useState<number>(DEFAULT_TIME_LIMIT);
+  
+  const containerRef = useRef<HTMLDivElement>(null);
 
- 
   const handleTimeUp = useCallback(() => {
     setGameState('gameover');
   }, []);
 
-  
   const startGame = useCallback(() => {
     setGameState('playing');
     setTimeLimit(DEFAULT_TIME_LIMIT);
+    
+    if (containerRef.current) {
+      const focusableElements = containerRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      
+      if (focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      } else {
+        containerRef.current.focus();
+      }
+    }
   }, [DEFAULT_TIME_LIMIT]);
 
-  
   const restartGame = useCallback(() => {
     startGame();
   }, [startGame]);
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div 
+      ref={containerRef}
+      className="relative w-full h-full flex flex-col"
+      tabIndex={-1}
+    >
       {/* Game header with timer */}
       <div className="flex justify-between items-center mb-2 px-2">
         <h2 className="text-xl font-bold text-white">Go-Kart Race</h2>
