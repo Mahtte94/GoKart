@@ -31,7 +31,7 @@ const Gokart: React.FC = () => {
     y: 50,
     rotation: 0,
   });
-  const [speed] = useState<number>(5);
+  const [speed] = useState<number>(8);
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
