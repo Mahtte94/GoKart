@@ -19,16 +19,16 @@ const Gokart: React.FC = () => {
   const containerRef = useRef<HTMLElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState({ x: 50, y: 50, rotation: 0 });
+  const [position, setPosition] = useState({ x: 350, y: 250, rotation: 0 });
   const [speed] = useState<number>(5);
   const [rotationSpeed] = useState<number>(5); 
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
-    maxX: 1216,
+    maxX: 700,
     minY: 0,
-    maxY: 320,
+    maxY: 500,
   });
 
   useEffect(() => {
@@ -65,6 +65,7 @@ const Gokart: React.FC = () => {
       if (document.activeElement === containerRef.current) {
         setIsFocused(true);
       } else {
+        // Also check if any parent element is focused
         let element = containerRef.current?.parentElement;
         let parentHasFocus = false;
         
@@ -164,9 +165,9 @@ const Gokart: React.FC = () => {
   return (
     <div 
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      className="relative w-full h-96 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
+      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      style={{ outline: 'none' }} 
+      style={{ outline: 'none', height: '500px' }}
     >
       <div 
         className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md transition-all duration-100 ease-in-out"
@@ -177,7 +178,7 @@ const Gokart: React.FC = () => {
         <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
       </div>
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {!isFocused && "Click on the area to enable keyboard controls"}
+        {!isFocused && "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>
   );
