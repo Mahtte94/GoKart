@@ -1,24 +1,32 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Gokart from './Gokart';
 import Timer from './Timer';
 
-type GameState = 'ready' | 'playing' | 'gameover';
+type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
 const GameController: React.FC = () => {
-  const DEFAULT_TIME_LIMIT = 60;
-  
   const [gameState, setGameState] = useState<GameState>('ready');
-  const [timeLimit, setTimeLimit] = useState<number>(DEFAULT_TIME_LIMIT);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const [bestTime, setBestTime] = useState<number | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleTimeUp = useCallback(() => {
-    setGameState('gameover');
+  const handleTimeUpdate = useCallback((time: number) => {
+    setCurrentTime(time);
   }, []);
+
+  const handleFinish = useCallback(() => {
+    setGameState('finished');
+    
+    // Update best time if this run is better or it's the first run
+    if (bestTime === null || currentTime < bestTime) {
+      setBestTime(currentTime);
+    }
+  }, [currentTime, bestTime]);
 
   const startGame = useCallback(() => {
     setGameState('playing');
-    setTimeLimit(DEFAULT_TIME_LIMIT);
+    setCurrentTime(0);
     
     if (containerRef.current) {
       const focusableElements = containerRef.current.querySelectorAll(
@@ -31,11 +39,19 @@ const GameController: React.FC = () => {
         containerRef.current.focus();
       }
     }
-  }, [DEFAULT_TIME_LIMIT]);
+  }, []);
 
-  const restartGame = useCallback(() => {
-    startGame();
-  }, [startGame]);
+  const formatTime = useCallback((seconds: number | null): string => {
+    if (seconds === null) return "--:--";
+    
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    
+    const minsStr = mins < 10 ? `0${mins}` : `${mins}`;
+    const secsStr = secs < 10 ? `0${secs}` : `${secs}`;
+    
+    return `${minsStr}:${secsStr}`;
+  }, []);
 
   return (
     <div 
@@ -44,45 +60,69 @@ const GameController: React.FC = () => {
       tabIndex={-1}
     >
       {/* Game header with timer */}
-      <div className="flex justify-between items-center mb-2 px-2">
+      <div className="flex justify-between items-center mb-2 px-4 py-2 bg-gray-800 bg-opacity-50 rounded-lg">
         <h2 className="text-xl font-bold text-white">Go-Kart Race</h2>
         
-        {gameState === 'playing' && (
-          <Timer 
-            initialTime={timeLimit} 
-            onTimeUp={handleTimeUp} 
-            isPaused={gameState !== 'playing'} 
-          />
-        )}
+        <div className="flex items-center space-x-4">
+          {bestTime !== null && (
+            <div className="text-yellow-300 font-mono">
+              <span className="mr-2 font-bold">BÄSTA TID:</span>
+              {formatTime(bestTime)}
+            </div>
+          )}
+          
+          {gameState === 'playing' && (
+            <Timer 
+              initialTime={0}
+              isRunning={gameState === 'playing'}
+              onTimeUpdate={handleTimeUpdate}
+            />
+          )}
+        </div>
       </div>
 
       {/* Main game area */}
       <div className="relative flex-grow">
         <Gokart />
         
-        {/* Game overlay for different states */}
+        {/* Finish line button (temporary) - replace with actual game logic */}
+        {gameState === 'playing' && (
+          <button
+            onClick={handleFinish}
+            className="absolute bottom-4 right-4 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+          >
+            Målgång (Tillfällig knapp)
+          </button>
+        )}
+        
+        {/* Game overlays */}
         {gameState === 'ready' && (
           <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white">
             <h2 className="text-3xl font-bold mb-6">Go-Kart Race</h2>
-            <p className="mb-8 text-lg">Race against the clock! Complete the course before time runs out.</p>
+            <p className="mb-8 text-lg">Kör runt banan så snabbt du kan!</p>
             <button 
               onClick={startGame}
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
             >
-              Start Race
+              Starta Lopp
             </button>
           </div>
         )}
         
-        {gameState === 'gameover' && (
+        {gameState === 'finished' && (
           <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white">
-            <h2 className="text-3xl font-bold mb-6 text-red-500">Time's Up!</h2>
-            <p className="mb-8 text-lg">You ran out of time. Try again!</p>
+            <h2 className="text-3xl font-bold mb-2 text-green-500">Målgång!</h2>
+            <p className="text-2xl mb-2">Din tid: <span className="font-mono font-bold">{formatTime(currentTime)}</span></p>
+            
+            {bestTime === currentTime && (
+              <p className="text-xl text-yellow-300 mb-6">Nytt rekord!</p>
+            )}
+            
             <button 
-              onClick={restartGame}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
+              onClick={startGame}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg mt-4"
             >
-              Restart Race
+              Kör Igen
             </button>
           </div>
         )}
