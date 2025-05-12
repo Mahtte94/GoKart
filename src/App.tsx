@@ -1,15 +1,11 @@
 import { useState } from 'react'
 import './App.css'
-import Gokart from './components/Gokart'
-
-
+import GameController from './components/GameController'
 
 function App() {
-
-
   return (
     <>
-      <Gokart/>
+      <GameController />
     </>
   )
 }
