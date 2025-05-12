@@ -166,7 +166,7 @@ const Gokart: React.FC = () => {
       />
 
       {/* Instructions */}
-      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
+      <div className="absolute bottom-2 left-2 text-sm text-gray-700 bg-white p-2 rounded shadow">
         {isFocused
           ? "Use arrow keys to move"
           : "Click on the area to enable keyboard controls"}
