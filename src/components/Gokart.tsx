@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import GoKartSprite from "./GoKartSprite";
+import RaceTrack from "../assets/RaceTrack";
 
 interface Position {
   x: number;
@@ -30,7 +31,7 @@ const Gokart: React.FC = () => {
     y: 50,
     rotation: 0,
   });
-  const [speed] = useState<number>(5);
+  const [speed] = useState<number>(8);
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
@@ -148,18 +149,24 @@ const Gokart: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-96 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
+      className="relative w-full h-[800px] bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
       onClick={() => setIsFocused(true)}
     >
+      {/* Race track as background */}
+      <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+
+      {/* Go-kart sprite on top */}
       <GoKartSprite
         x={position.x}
         y={position.y}
         rotation={position.rotation}
       />
-      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
+
+      {/* Instructions */}
+      <div className="absolute bottom-2 left-2 text-sm text-gray-700 bg-white p-2 rounded shadow">
         {isFocused
           ? "Use arrow keys to move"
           : "Click on the area to enable keyboard controls"}
