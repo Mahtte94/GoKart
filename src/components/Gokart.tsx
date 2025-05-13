@@ -26,9 +26,9 @@ const Gokart: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState<Position>({
-    x: 50,
-    y: 50,
+  const [position, setPosition] = useState({
+    x: 350,
+    y: 250,
     rotation: 0,
   });
   const [speed] = useState<number>(8);
@@ -37,9 +37,9 @@ const Gokart: React.FC = () => {
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
-    maxX: window.innerWidth,
+    maxX: 700,
     minY: 0,
-    maxY: window.innerHeight,
+    maxY: 500,
   });
 
   useEffect(() => {
@@ -70,6 +70,41 @@ const Gokart: React.FC = () => {
     ArrowLeft: false,
     ArrowRight: false,
   });
+
+  useEffect(() => {
+    const checkFocus = () => {
+      if (document.activeElement === containerRef.current) {
+        setIsFocused(true);
+      } else {
+        // Also check if any parent element is focused
+        let element = containerRef.current?.parentElement;
+        let parentHasFocus = false;
+        
+        while (element) {
+          if (element === document.activeElement) {
+            parentHasFocus = true;
+            break;
+          }
+          element = element.parentElement;
+        }
+        
+        setIsFocused(parentHasFocus);
+      }
+    };
+
+    checkFocus();
+    
+    const handleFocusIn = () => checkFocus();
+    const handleFocusOut = () => checkFocus();
+    
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, []);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -119,9 +154,7 @@ const Gokart: React.FC = () => {
     animationFrameId = requestAnimationFrame(updatePosition);
 
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (!isFocused) return;
-
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         e.preventDefault();
 
         if (e.key in keyState.current) {
@@ -135,41 +168,34 @@ const Gokart: React.FC = () => {
         keyState.current[e.key as keyof KeyState] = false;
       }
     };
-
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused, boundaries]);
+  }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-[800px] bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
+    <div 
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onClick={() => setIsFocused(true)}
+      style={{ outline: 'none', height: '500px' }}
     >
-      {/* Race track as background */}
-      <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
-
-      {/* Go-kart sprite on top */}
-      <GoKartSprite
-        x={position.x}
-        y={position.y}
-        rotation={position.rotation}
-      />
-
-      {/* Instructions */}
-      <div className="absolute bottom-2 left-2 text-sm text-gray-700 bg-white p-2 rounded shadow">
-        {isFocused
-          ? "Use arrow keys to move"
-          : "Click on the area to enable keyboard controls"}
+      <div 
+        className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md transition-all duration-100 ease-in-out"
+        style={{ 
+          transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
+        }}
+      >
+        <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
+      </div>
+      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
+        {!isFocused && "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>
   );
