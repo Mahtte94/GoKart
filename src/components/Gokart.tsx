@@ -22,15 +22,21 @@ interface Boundaries {
   maxY: number;
 }
 
-const Gokart: React.FC = () => {
+interface GokartProps {
+  isGameActive?: boolean;
+}
+
+const START_POSITION: Position = {
+  x: 440,
+  y: 43,
+  rotation: 270,
+};
+
+const Gokart: React.FC<GokartProps> = ({ isGameActive = false }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState({
-    x: 350,
-    y: 250,
-    rotation: 0,
-  });
+  const [position, setPosition] = useState<Position>(START_POSITION);
   const [speed] = useState<number>(8);
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
@@ -41,6 +47,12 @@ const Gokart: React.FC = () => {
     minY: 0,
     maxY: 500,
   });
+
+  useEffect(() => {
+    if (isGameActive) {
+      setPosition(START_POSITION);
+    }
+  }, [isGameActive]);
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -110,7 +122,7 @@ const Gokart: React.FC = () => {
     let animationFrameId: number;
 
     const updatePosition = () => {
-      if (isFocused) {
+      if (isFocused && isGameActive) {
         setPosition((prev) => {
           let newPos = { ...prev };
 
@@ -177,7 +189,7 @@ const Gokart: React.FC = () => {
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
+  }, [speed, rotationSpeed, isFocused, boundaries, isGameActive]);
 
   return (
     <div
@@ -196,7 +208,7 @@ const Gokart: React.FC = () => {
         rotation={position.rotation}
       />
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {!isFocused &&
+        {!isFocused && isGameActive &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>

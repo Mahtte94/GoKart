@@ -9,6 +9,7 @@ const GameController: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('ready');
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
+  const [gameKey, setGameKey] = useState<number>(0); // Lägg till en nyckel för att tvinga omrendering
   
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +28,7 @@ const GameController: React.FC = () => {
   const startGame = useCallback(() => {
     setGameState('playing');
     setCurrentTime(0);
+    setGameKey(prevKey => prevKey + 1); // Öka spelnyckeln för att tvinga omrendering av Gokart
     
     if (containerRef.current) {
       const focusableElements = containerRef.current.querySelectorAll(
@@ -122,7 +124,10 @@ const GameController: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-4xl">
           <div className="relative">
-            <Gokart />
+            <Gokart 
+              key={gameKey} // Använd gameKey för att tvinga omrendering
+              isGameActive={gameState === 'playing'}
+            />
             
             {/* Finish line button (temporary) - replace with actual game logic */}
             {gameState === 'playing' && (
