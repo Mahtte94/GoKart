@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-
+import React, { useState, useEffect, useRef } from "react";
+import GoKartSprite from "./GoKartSprite";
+import RaceTrack from "../assets/RaceTrack";
 
 interface Position {
   x: number;
@@ -12,7 +13,6 @@ interface KeyState {
   ArrowDown: boolean;
   ArrowLeft: boolean;
   ArrowRight: boolean;
- 
 }
 
 interface Boundaries {
@@ -23,22 +23,24 @@ interface Boundaries {
 }
 
 const Gokart: React.FC = () => {
-
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  const [position, setPosition] = useState<Position>({ x: 50, y: 50, rotation: 0 });
-  const [speed] = useState<number>(5);
-  const [rotationSpeed] = useState<number>(5); 
+  const [position, setPosition] = useState({
+    x: 350,
+    y: 250,
+    rotation: 0,
+  });
+  const [speed] = useState<number>(8);
+  const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
-    maxX: 1216,
+    maxX: 700,
     minY: 0,
-    maxY: 320,
+    maxY: 500,
   });
-
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -48,50 +50,82 @@ const Gokart: React.FC = () => {
           minX: 0,
           maxX: containerRect.width - rectangleSize.width,
           minY: 0,
-          maxY: containerRect.height - rectangleSize.height
+          maxY: containerRect.height - rectangleSize.height,
         });
       }
     };
 
     updateBoundaries();
-   
-    window.addEventListener('resize', updateBoundaries);
-    
+
+    window.addEventListener("resize", updateBoundaries);
+
     return () => {
-      window.removeEventListener('resize', updateBoundaries);
+      window.removeEventListener("resize", updateBoundaries);
     };
   }, []);
-  
+
   const keyState = useRef<KeyState>({
     ArrowUp: false,
     ArrowDown: false,
     ArrowLeft: false,
     ArrowRight: false,
-  
   });
 
   useEffect(() => {
-   
+    const checkFocus = () => {
+      if (document.activeElement === containerRef.current) {
+        setIsFocused(true);
+      } else {
+        // Also check if any parent element is focused
+        let element = containerRef.current?.parentElement;
+        let parentHasFocus = false;
+
+        while (element) {
+          if (element === document.activeElement) {
+            parentHasFocus = true;
+            break;
+          }
+          element = element.parentElement;
+        }
+
+        setIsFocused(parentHasFocus);
+      }
+    };
+
+    checkFocus();
+
+    const handleFocusIn = () => checkFocus();
+    const handleFocusOut = () => checkFocus();
+
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  useEffect(() => {
     let animationFrameId: number;
-    
+
     const updatePosition = () => {
       if (isFocused) {
-        setPosition(prev => {
+        setPosition((prev) => {
           let newPos = { ...prev };
-          
-          
+
           if (keyState.current.ArrowLeft) {
             newPos.rotation = newPos.rotation - rotationSpeed;
           }
           if (keyState.current.ArrowRight) {
             newPos.rotation = newPos.rotation + rotationSpeed;
           }
-          
+
           const radians = (newPos.rotation * Math.PI) / 180;
 
           let potentialX = newPos.x;
           let potentialY = newPos.y;
-          
+
           if (keyState.current.ArrowUp) {
             potentialX += Math.sin(radians) * speed;
             potentialY -= Math.cos(radians) * speed;
@@ -100,76 +134,70 @@ const Gokart: React.FC = () => {
             potentialX -= Math.sin(radians) * speed;
             potentialY += Math.cos(radians) * speed;
           }
-          
-          newPos.x = Math.max(boundaries.minX, Math.min(boundaries.maxX, potentialX));
-          newPos.y = Math.max(boundaries.minY, Math.min(boundaries.maxY, potentialY));
 
-          
+          newPos.x = Math.max(
+            boundaries.minX,
+            Math.min(boundaries.maxX, potentialX)
+          );
+          newPos.y = Math.max(
+            boundaries.minY,
+            Math.min(boundaries.maxY, potentialY)
+          );
+
           return newPos;
         });
       }
-      
-     
+
       animationFrameId = requestAnimationFrame(updatePosition);
     };
-    
-   
+
     animationFrameId = requestAnimationFrame(updatePosition);
-    
-  
+
     const handleKeyDown = (e: KeyboardEvent): void => {
-      if (!isFocused) return;
-      
-     
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
         e.preventDefault();
-        
-       
+
         if (e.key in keyState.current) {
           keyState.current[e.key as keyof KeyState] = true;
         }
       }
     };
-    
+
     const handleKeyUp = (e: KeyboardEvent): void => {
       if (e.key in keyState.current) {
         keyState.current[e.key as keyof KeyState] = false;
       }
     };
-    
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    
-   
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused]); 
-  
+  }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
+
   return (
-    <div 
-      className="relative w-full h-96 bg-gray-100 border border-gray-300 rounded-lg overflow-hidden"
+    <div
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      onClick={() => setIsFocused(true)}
+      style={{ outline: "none", height: "500px" }}
     >
-      <div 
-        className="absolute bg-red-600 w-8 h-12 rounded-md shadow-md transition-all duration-100 ease-in-out"
-        style={{ 
-          transform: `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`,
-        }}
-      >
-       
-        <div className="absolute top-0 left-1/2 w-2 h-4 bg-black transform -translate-x-1/2 -translate-y-1/2 rounded-t-full" />
-      </div>
+      {/* Race track as background */}
+      <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+
+      {/* Go-kart sprite on top */}
+      <GoKartSprite
+        x={position.x}
+        y={position.y}
+        rotation={position.rotation}
+      />
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {isFocused ? 
-          "Use arrow keys to move" : 
-          "Click on the area to enable keyboard controls"}
+        {!isFocused &&
+          "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>
   );

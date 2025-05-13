@@ -1,16 +1,12 @@
 import { useState } from 'react'
 import './App.css'
-import Gokart from './components/Gokart'
-
-
+import GameController from './components/GameController'
 
 function App() {
-
-
   return (
-    <>
-      <Gokart/>
-    </>
+    <div className="h-screen overflow-hidden">
+      <GameController />
+    </div>
   )
 }
 
