@@ -8,6 +8,9 @@ interface TimerProps {
   className?: string;        
 }
 
+// TypeScript type for the timer interval
+type TimerInterval = ReturnType<typeof setTimeout>; // Use this instead of NodeJS.Timeout
+
 const Timer: React.FC<TimerProps> = ({
   initialTime = 0,           
   isRunning = true,          
@@ -32,10 +35,10 @@ const Timer: React.FC<TimerProps> = ({
 
   // Timer effect
   useEffect(() => {
-    let interval: number | undefined = undefined;
+    let interval: TimerInterval | undefined = undefined;
 
     if (isRunning) {
-      interval = window.setInterval(() => {
+      interval = setInterval(() => {
         setTime(prevTime => {
           const newTime = prevTime + 1;
           if (onTimeUpdate) {
@@ -47,7 +50,7 @@ const Timer: React.FC<TimerProps> = ({
     }
 
     return () => {
-      if (interval) window.clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [isRunning, onTimeUpdate]);
 

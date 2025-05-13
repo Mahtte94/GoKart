@@ -24,6 +24,7 @@ interface Boundaries {
 
 interface GokartProps {
   isGameActive?: boolean;
+  onPositionUpdate?: (position: { x: number; y: number }) => void;
 }
 
 const START_POSITION: Position = {
@@ -32,7 +33,10 @@ const START_POSITION: Position = {
   rotation: 270,
 };
 
-const Gokart: React.FC<GokartProps> = ({ isGameActive = false }) => {
+const Gokart: React.FC<GokartProps> = ({ 
+  isGameActive = false,
+  onPositionUpdate
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
@@ -51,8 +55,20 @@ const Gokart: React.FC<GokartProps> = ({ isGameActive = false }) => {
   useEffect(() => {
     if (isGameActive) {
       setPosition(START_POSITION);
+      
+      // Auto-focus on container when game starts
+      if (containerRef.current) {
+        containerRef.current.focus();
+      }
     }
   }, [isGameActive]);
+
+  // Send position updates to parent component
+  useEffect(() => {
+    if (isGameActive && onPositionUpdate) {
+      onPositionUpdate({ x: position.x, y: position.y });
+    }
+  }, [position, isGameActive, onPositionUpdate]);
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -191,12 +207,20 @@ const Gokart: React.FC<GokartProps> = ({ isGameActive = false }) => {
     };
   }, [speed, rotationSpeed, isFocused, boundaries, isGameActive]);
 
+  // Function to handle clicking on the container (for focus)
+  const handleContainerClick = () => {
+    if (containerRef.current) {
+      containerRef.current.focus();
+    }
+  };
+
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
       className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       style={{ outline: "none", height: "500px" }}
+      onClick={handleContainerClick}
     >
       {/* Race track as background */}
       <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
@@ -207,7 +231,9 @@ const Gokart: React.FC<GokartProps> = ({ isGameActive = false }) => {
         y={position.y}
         rotation={position.rotation}
       />
-      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
+      
+      {/* Focus notification */}
+      <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
         {!isFocused && isGameActive &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
