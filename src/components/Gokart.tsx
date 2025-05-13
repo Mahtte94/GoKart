@@ -25,6 +25,7 @@ interface Boundaries {
 const Gokart: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [position, setPosition] = useState({
     x: 350,
@@ -35,12 +36,27 @@ const Gokart: React.FC = () => {
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
+  const [currentDisplaySpeed, setCurrentDisplaySpeed] = useState<number>(0);
+
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
     maxX: 700,
     minY: 0,
     maxY: 500,
   });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (canvas && ctx) {
+      const img = new Image();
+      img.src = "/racetrack-map.png";
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        console.log("Track image loaded to canvas");
+      };
+    }
+  }, []);
 
   useEffect(() => {
     const updateBoundaries = () => {
@@ -123,16 +139,51 @@ const Gokart: React.FC = () => {
 
           const radians = (newPos.rotation * Math.PI) / 180;
 
+          // Read pixel color under car center
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext("2d");
+          let currentSpeed = speed;
+
+          if (ctx) {
+            const container = containerRef.current;
+            if (container) {
+              if (!canvas) return prev;
+              const scaleX = canvas.width / container.clientWidth;
+              const scaleY = canvas.height / container.clientHeight;
+
+              const canvasX = Math.floor((newPos.x + 32) * scaleX);
+              const canvasY = Math.floor((newPos.y + 32) * scaleY);
+
+              const imageData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
+              const [r, g, b] = imageData;
+
+              // Grass color check (tolerance around #2A922C)
+              if (
+                r >= 30 &&
+                r <= 60 &&
+                g >= 130 &&
+                g <= 160 &&
+                b >= 30 &&
+                b <= 60
+              ) {
+                currentSpeed = speed * 0.5; // Slow down to 50% on grass
+              }
+            }
+          }
+
+          // Update live speed display before calculating movement
+          setCurrentDisplaySpeed(currentSpeed);
+
           let potentialX = newPos.x;
           let potentialY = newPos.y;
 
           if (keyState.current.ArrowUp) {
-            potentialX += Math.sin(radians) * speed;
-            potentialY -= Math.cos(radians) * speed;
+            potentialX += Math.sin(radians) * currentSpeed;
+            potentialY -= Math.cos(radians) * currentSpeed;
           }
           if (keyState.current.ArrowDown) {
-            potentialX -= Math.sin(radians) * speed;
-            potentialY += Math.cos(radians) * speed;
+            potentialX -= Math.sin(radians) * currentSpeed;
+            potentialY += Math.cos(radians) * currentSpeed;
           }
 
           newPos.x = Math.max(
@@ -182,10 +233,17 @@ const Gokart: React.FC = () => {
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
-      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
+      className="relative w-full h-[600px] bg-white border border-gray-300 rounded-lg overflow-hidden outline-none"
       tabIndex={0}
-      style={{ outline: "none", height: "500px" }}
     >
+      {/* Hidden canvas for pixel detection */}
+      <canvas
+        ref={canvasRef}
+        width={1440}
+        height={1024}
+        style={{ display: "none" }}
+      />
+
       {/* Race track as background */}
       <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
 
@@ -198,6 +256,9 @@ const Gokart: React.FC = () => {
       <div className="absolute bottom-2 left-2 text-sm text-gray-600">
         {!isFocused &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
+      </div>
+      <div className="absolute bottom-2 left-2 text-lg text-white">
+        Speed: {currentDisplaySpeed.toFixed(1)}
       </div>
     </div>
   );
