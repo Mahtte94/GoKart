@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import Gokart from "./Gokart";
 import Timer from "./Timer";
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
@@ -10,9 +10,23 @@ const GameController: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>("ready");
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
+  const [isMobileView, setIsMobileView] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<any>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -136,9 +150,11 @@ const GameController: React.FC = () => {
           <div className="relative">
             <Gokart ref={gokartRef} />
 
-            <div className="mt-4">
-              <MobileControls onControlPress={handleControlPress} />
-            </div>
+            {gameState === 'playing' && isMobileView && (
+              <div className="mt-4">
+                <MobileControls onControlPress={handleControlPress} />
+              </div>
+            )}
 
             {/* Finish line button (temporary) - replace with actual game logic */}
             {gameState === "playing" && (
