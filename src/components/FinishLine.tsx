@@ -10,17 +10,27 @@ const FinishLine: React.FC<FinishLineProps> = ({ position }) => {
     <div 
       className="absolute flex flex-col items-center"
       style={{
-        transform: `translate(${position.x - 40}px, ${position.y - 10}px)`,
+        transform: `translate(${position.x - 40}px, ${position.y - 15}px)`,
         zIndex: 5
       }}
     >
-      {/* More compact checkered pattern */}
+      {/* Flag icon for better visibility */}
+      <Flag className="text-black absolute -top-8 right-16" size={24} />
+      
+      {/* Checkered pattern matching the screenshot */}
       <div className="flex">
         <div className="w-8 h-6 bg-white"></div>
         <div className="w-8 h-6 bg-black"></div>
         <div className="w-8 h-6 bg-white"></div>
         <div className="w-8 h-6 bg-black"></div>
         <div className="w-8 h-6 bg-white"></div>
+      </div>
+      <div className="flex">
+        <div className="w-8 h-6 bg-black"></div>
+        <div className="w-8 h-6 bg-white"></div>
+        <div className="w-8 h-6 bg-black"></div>
+        <div className="w-8 h-6 bg-white"></div>
+        <div className="w-8 h-6 bg-black"></div>
       </div>
     </div>
   );

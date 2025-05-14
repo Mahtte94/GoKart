@@ -9,19 +9,18 @@ import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Flag, CheckCircle } from 'lu
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
-// Define the finish line area
+// Define the finish line area - updated to match the checkered line in the screenshots
 const FINISH_LINE = {
   x: 440,
-  y: 43,
+  y: 0, // Updated to match the top checkered pattern position
   width: 80, // Width of detection area
-  height: 30, // Height of detection area
+  height: 100, // Height of detection area
 };
 
 // Define a checkpoint that the player must pass to validate a lap
-// Adjusted to be more visible on the track
 const CHECKPOINT = {
   x: 450,
-  y: 400,
+  y: 400, // Adjusted to be on the bottom section of the track
   radius: 100, // Detection radius
 };
 
@@ -82,12 +81,12 @@ const GameController: React.FC = () => {
       }, Checkpoint passed: ${checkpointPassedRef.current}, Can count lap: ${canCountLapRef.current}`);
     }
     
-    // Detect if player is crossing the finish line
+    // Detect if player is crossing the finish line - wider detection area to ensure reliable detection
     const isOnFinishLine = 
       position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
       position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
-      position.y >= FINISH_LINE.y - FINISH_LINE.height / 2 &&
-      position.y <= FINISH_LINE.y + FINISH_LINE.height / 2;
+      position.y >= FINISH_LINE.y - 5 &&
+      position.y <= FINISH_LINE.y + FINISH_LINE.height;
     
     // Check if player has passed the checkpoint
     const distanceToCheckpoint = Math.sqrt(
@@ -97,6 +96,11 @@ const GameController: React.FC = () => {
     
     if (distanceToCheckpoint <= CHECKPOINT.radius) {
       checkpointPassedRef.current = true;
+      
+      // Log for debugging
+      if (showDebug && !checkpointPassedRef.current) {
+        console.log("Checkpoint passed!");
+      }
     }
     
     // Count a lap when player crosses finish line after passing the checkpoint
