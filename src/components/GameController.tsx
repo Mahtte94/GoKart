@@ -9,20 +9,29 @@ import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Flag, CheckCircle } from 'lu
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
-// Define the finish line area - updated to match the checkered line in the screenshots
+
 const FINISH_LINE = {
   x: 440,
-  y: 0, // Updated to match the top checkered pattern position
-  width: 80, // Width of detection area
-  height: 100, // Height of detection area
+  y: 0, 
+  width: 80, 
+  height: 100, 
 };
 
-// Define a checkpoint that the player must pass to validate a lap
-const CHECKPOINT = {
-  x: 450,
-  y: 400, // Adjusted to be on the bottom section of the track
-  radius: 100, // Detection radius
-};
+
+const CHECKPOINTS = [
+  {
+    id: 1,
+    x: 166, // Left side of the track
+    y: 360,
+    radius: 60, 
+  },
+  {
+    id: 2,
+    x: 643, // Right side of the track
+    y: 389,
+    radius: 60, 
+  }
+];
 
 const GameController: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('ready');
@@ -30,11 +39,11 @@ const GameController: React.FC = () => {
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [gameKey, setGameKey] = useState<number>(0);
   
-  // Lap tracking
+  
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(3);
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const checkpointPassedRef = useRef<boolean>(false);
+  const checkpointsPassedRef = useRef<boolean[]>([false, false]); // Track multiple checkpoints
   const canCountLapRef = useRef<boolean>(false);
   
   // Debug mode (can be toggled with D key)
@@ -42,7 +51,6 @@ const GameController: React.FC = () => {
   
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Add key listener for debug mode toggle
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'd' || e.key === 'D') {
@@ -73,38 +81,40 @@ const GameController: React.FC = () => {
     
     // Debug position with clear logging
     if (showDebug) {
-      console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(position.y)}, At finish line: ${
-        position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
-        position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
-        position.y >= FINISH_LINE.y - FINISH_LINE.height / 2 &&
-        position.y <= FINISH_LINE.y + FINISH_LINE.height / 2
-      }, Checkpoint passed: ${checkpointPassedRef.current}, Can count lap: ${canCountLapRef.current}`);
+      console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(position.y)}, 
+        Checkpoints: [${checkpointsPassedRef.current.join(', ')}], 
+        Can count lap: ${canCountLapRef.current}`);
     }
     
-    // Detect if player is crossing the finish line - wider detection area to ensure reliable detection
+    // Detect if player is crossing the finish line
     const isOnFinishLine = 
       position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
       position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
       position.y >= FINISH_LINE.y - 5 &&
       position.y <= FINISH_LINE.y + FINISH_LINE.height;
     
-    // Check if player has passed the checkpoint
-    const distanceToCheckpoint = Math.sqrt(
-      Math.pow(position.x - CHECKPOINT.x, 2) + 
-      Math.pow(position.y - CHECKPOINT.y, 2)
-    );
-    
-    if (distanceToCheckpoint <= CHECKPOINT.radius) {
-      checkpointPassedRef.current = true;
+    // Check if player has passed each checkpoint
+    CHECKPOINTS.forEach((checkpoint, index) => {
+      const distanceToCheckpoint = Math.sqrt(
+        Math.pow(position.x - checkpoint.x, 2) + 
+        Math.pow(position.y - checkpoint.y, 2)
+      );
       
-      // Log for debugging
-      if (showDebug && !checkpointPassedRef.current) {
-        console.log("Checkpoint passed!");
+      if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
+        checkpointsPassedRef.current[index] = true;
+        
+        // Log for debugging
+        if (showDebug) {
+          console.log(`Checkpoint ${index + 1} passed!`);
+        }
       }
-    }
+    });
     
-    // Count a lap when player crosses finish line after passing the checkpoint
-    if (isOnFinishLine && checkpointPassedRef.current && canCountLapRef.current) {
+    // Check if all checkpoints have been passed
+    const allCheckpointsPassed = checkpointsPassedRef.current.every(passed => passed);
+    
+    // Count a lap when player crosses finish line after passing all checkpoints
+    if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
       setCurrentLap(prev => {
         const newLap = prev + 1;
         
@@ -119,7 +129,7 @@ const GameController: React.FC = () => {
       });
       
       // Reset checkpoint status and disable lap counting temporarily
-      checkpointPassedRef.current = false;
+      checkpointsPassedRef.current = [false, false];
       canCountLapRef.current = false;
       
       // After a short delay, allow lap counting again
@@ -137,7 +147,7 @@ const GameController: React.FC = () => {
     setGameKey(prevKey => prevKey + 1);
     
     // Initialize lap tracking state
-    checkpointPassedRef.current = false;
+    checkpointsPassedRef.current = [false, false]; // Reset both checkpoints
     canCountLapRef.current = true;
     
     console.log("Game started! Lap tracking initialized.");
@@ -246,17 +256,23 @@ const GameController: React.FC = () => {
             />
             <FinishLine position={{ x: FINISH_LINE.x, y: FINISH_LINE.y }} />
             {gameState === 'playing' && (
-              <Checkpoint 
-                position={{ x: CHECKPOINT.x, y: CHECKPOINT.y }} 
-                isPassed={checkpointPassedRef.current}
-              />
+              <>
+                {CHECKPOINTS.map((checkpoint, index) => (
+                  <Checkpoint 
+                    key={checkpoint.id}
+                    position={{ x: checkpoint.x, y: checkpoint.y }} 
+                    isPassed={checkpointsPassedRef.current[index]}
+                    index={index + 1}
+                  />
+                ))}
+              </>
             )}
             
             {/* Debug overlay - toggle with 'D' key */}
             {showDebug && gameState === 'playing' && (
               <DebugOverlay
                 position={lastPositionRef.current}
-                checkpointPassed={checkpointPassedRef.current}
+                checkpointsPassed={checkpointsPassedRef.current}
                 currentLap={currentLap}
                 canCountLap={canCountLapRef.current}
               />
@@ -269,9 +285,9 @@ const GameController: React.FC = () => {
                 <p className="text-lg mb-1 text-white">Kör {totalLaps} varv runt banan så snabbt du kan!</p>
                 <p className="text-sm mb-4 text-yellow-300 flex items-center justify-center">
                   <Flag size={14} className="inline mr-1" />
-                  Du måste passera checkpointen
+                  Du måste passera båda checkpoints
                   <CheckCircle size={14} className="inline mx-1" />
-                  för ett varv!
+                  för att räkna ett varv!
                 </p>
                 
                 {/* Keyboard control instructions */}
