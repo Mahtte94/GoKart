@@ -8,8 +8,8 @@ interface MySvgProps extends React.SVGProps<SVGSVGElement> {
 
 function RaceTrack({
   className,
-  width = "100%",
-  height = "100%",
+  width = "1440",
+  height = "1024",
   ...props
 }: MySvgProps) {
   return (
