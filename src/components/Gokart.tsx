@@ -155,7 +155,6 @@ const Gokart = forwardRef<{ handleControlPress: (key: keyof KeyState, isPressed:
             if (ctx) {
               const container = containerRef.current;
               if (container) {
-                if (!canvas) return prev;
                 const scaleX = canvas.width / container.clientWidth;
                 const scaleY = canvas.height / container.clientHeight;
 
