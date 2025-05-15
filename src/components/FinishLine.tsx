@@ -18,20 +18,7 @@ const FinishLine: React.FC<FinishLineProps> = ({ position }) => {
       <Flag className="text-black absolute -top-8 right-16" size={24} />
       
       {/* Checkered pattern matching the screenshot */}
-      <div className="flex">
-        <div className="w-8 h-6 bg-white"></div>
-        <div className="w-8 h-6 bg-black"></div>
-        <div className="w-8 h-6 bg-white"></div>
-        <div className="w-8 h-6 bg-black"></div>
-        <div className="w-8 h-6 bg-white"></div>
-      </div>
-      <div className="flex">
-        <div className="w-8 h-6 bg-black"></div>
-        <div className="w-8 h-6 bg-white"></div>
-        <div className="w-8 h-6 bg-black"></div>
-        <div className="w-8 h-6 bg-white"></div>
-        <div className="w-8 h-6 bg-black"></div>
-      </div>
+     
     </div>
   );
 };
