@@ -17,7 +17,7 @@ const FinishLine: React.FC<FinishLineProps> = ({ position }) => {
       {/* Flag icon for better visibility */}
       <Flag className="text-black absolute -top-8 right-16" size={24} />
       
-      {/* Checkered pattern matching the screenshot */}
+     
      
     </div>
   );
