@@ -3,35 +3,34 @@ import Gokart from './Gokart';
 import Timer from './Timer';
 import LapIndicator from './LapIndicator';
 import FinishLine from './FinishLine';
-import Checkpoint from './checkpoint';
+import Checkpoint from './Checkpoint'; // Make sure this is capitalized!
 import DebugOverlay from './DebugOverlay';
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Flag, CheckCircle } from 'lucide-react';
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
+// Updated checkpoint positions - positioned on the track based on screenshot
+const CHECKPOINTS = [
+  {
+    id: 1,
+    x: 204,
+    y: 380,
+    radius: 100,
+  },
+  {
+    id: 2,
+    x: 691, // Right curve of the track
+    y: 400,
+    radius: 100,
+  }
+];
 
 const FINISH_LINE = {
-  x: 440,
+  x: 440, // Adjusted based on the image
   y: 0, 
   width: 80, 
   height: 100, 
 };
-
-
-const CHECKPOINTS = [
-  {
-    id: 1,
-    x: 166, // Left side of the track
-    y: 360,
-    radius: 60, 
-  },
-  {
-    id: 2,
-    x: 643, // Right side of the track
-    y: 389,
-    radius: 60, 
-  }
-];
 
 const GameController: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('ready');
@@ -39,22 +38,26 @@ const GameController: React.FC = () => {
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [gameKey, setGameKey] = useState<number>(0);
   
-  
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(3);
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const checkpointsPassedRef = useRef<boolean[]>([false, false]); // Track multiple checkpoints
+  const checkpointsPassedRef = useRef<boolean[]>([false, false]);
   const canCountLapRef = useRef<boolean>(false);
   
-  // Debug mode (can be toggled with D key)
-  const [showDebug, setShowDebug] = useState<boolean>(true); // Default to true for troubleshooting
-  
+  const [showDebug, setShowDebug] = useState<boolean>(true);
+  const [checkpointsVisible, setCheckpointsVisible] = useState<boolean>(true); // New state for checkpoint visibility
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Effect to toggle debug and checkpoint visibility
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'd' || e.key === 'D') {
         setShowDebug(prev => !prev);
+      }
+      // Add a toggle for checkpoint visibility with 'C' key
+      if (e.key === 'c' || e.key === 'C') {
+        setCheckpointsVisible(prev => !prev);
+        console.log('Checkpoint visibility toggled');
       }
     };
     
@@ -74,26 +77,26 @@ const GameController: React.FC = () => {
     }
   }, [currentTime, bestTime]);
 
-  // Function to track position and detect when a lap is completed
+  // Function to track position and detect checkpoints and laps
   const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
     // Store the last position
     lastPositionRef.current = position;
     
-    // Debug position with clear logging
+    // Log detailed position info
     if (showDebug) {
       console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(position.y)}, 
         Checkpoints: [${checkpointsPassedRef.current.join(', ')}], 
         Can count lap: ${canCountLapRef.current}`);
     }
     
-    // Detect if player is crossing the finish line
+    // Detect finish line crossing
     const isOnFinishLine = 
       position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
       position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
       position.y >= FINISH_LINE.y - 5 &&
       position.y <= FINISH_LINE.y + FINISH_LINE.height;
     
-    // Check if player has passed each checkpoint
+    // Check each checkpoint
     CHECKPOINTS.forEach((checkpoint, index) => {
       const distanceToCheckpoint = Math.sqrt(
         Math.pow(position.x - checkpoint.x, 2) + 
@@ -102,26 +105,19 @@ const GameController: React.FC = () => {
       
       if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
         checkpointsPassedRef.current[index] = true;
-        
-        // Log for debugging
-        if (showDebug) {
-          console.log(`Checkpoint ${index + 1} passed!`);
-        }
+        console.log(`Checkpoint ${index + 1} passed!`); // Always log checkpoint passing
       }
     });
     
     // Check if all checkpoints have been passed
     const allCheckpointsPassed = checkpointsPassedRef.current.every(passed => passed);
     
-    // Count a lap when player crosses finish line after passing all checkpoints
+    // Count a lap when crossing finish line after all checkpoints
     if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
       setCurrentLap(prev => {
         const newLap = prev + 1;
-        
-        // Log for debugging
         console.log(`Lap completed! New lap: ${newLap}`);
         
-        // End game if all laps are completed
         if (newLap >= totalLaps) {
           handleFinish();
         }
@@ -132,8 +128,7 @@ const GameController: React.FC = () => {
       checkpointsPassedRef.current = [false, false];
       canCountLapRef.current = false;
       
-      // After a short delay, allow lap counting again
-      // This prevents multiple lap counts if player stays on finish line
+      // After a delay, allow lap counting again
       setTimeout(() => {
         canCountLapRef.current = true;
       }, 1000);
@@ -147,7 +142,7 @@ const GameController: React.FC = () => {
     setGameKey(prevKey => prevKey + 1);
     
     // Initialize lap tracking state
-    checkpointsPassedRef.current = [false, false]; // Reset both checkpoints
+    checkpointsPassedRef.current = [false, false];
     canCountLapRef.current = true;
     
     console.log("Game started! Lap tracking initialized.");
@@ -245,30 +240,38 @@ const GameController: React.FC = () => {
         </div>
       </div>
 
-      {/* Main game area - centered with fixed height */}
+      {/* Main game area */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-4xl">
           <div className="relative">
+            {/* Main game elements */}
             <Gokart 
               key={gameKey}
               isGameActive={gameState === 'playing'}
               onPositionUpdate={handlePositionUpdate}
             />
-            <FinishLine position={{ x: FINISH_LINE.x, y: FINISH_LINE.y }} />
-            {gameState === 'playing' && (
-              <>
-                {CHECKPOINTS.map((checkpoint, index) => (
-                  <Checkpoint 
-                    key={checkpoint.id}
-                    position={{ x: checkpoint.x, y: checkpoint.y }} 
-                    isPassed={checkpointsPassedRef.current[index]}
-                    index={index + 1}
-                  />
-                ))}
-              </>
-            )}
             
-            {/* Debug overlay - toggle with 'D' key */}
+            
+            {/* Explicitly render the checkpoints as direct children of the container */}
+            {checkpointsVisible && CHECKPOINTS.map((checkpoint, index) => (
+              <Checkpoint 
+                key={checkpoint.id}
+                position={{ x: checkpoint.x, y: checkpoint.y }} 
+                isPassed={gameState === 'playing' ? checkpointsPassedRef.current[index] : false}
+                index={index + 1}
+              />
+            ))}
+            
+            {/* Debug button to toggle checkpoint visibility */}
+            <button
+              className="absolute top-3 right-3 bg-gray-800 px-3 py-1 rounded z-50 text-sm"
+              onClick={() => setCheckpointsVisible(prev => !prev)}
+              style={{ zIndex: 9999 }}
+            >
+              {checkpointsVisible ? 'Hide' : 'Show'} Checkpoints
+            </button>
+            
+            {/* Debug overlay */}
             {showDebug && gameState === 'playing' && (
               <DebugOverlay
                 position={lastPositionRef.current}
@@ -280,7 +283,7 @@ const GameController: React.FC = () => {
             
             {/* Game overlays */}
             {gameState === 'ready' && (
-              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center">
+              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
                 <h2 className="text-3xl font-bold mb-3 text-white">Go-Kart Race</h2>
                 <p className="text-lg mb-1 text-white">Kör {totalLaps} varv runt banan så snabbt du kan!</p>
                 <p className="text-sm mb-4 text-yellow-300 flex items-center justify-center">
@@ -303,7 +306,7 @@ const GameController: React.FC = () => {
             )}
             
             {gameState === 'finished' && (
-              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center">
+              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
                 <h2 className="text-3xl font-bold mb-3 text-green-500">
                   <Flag className="inline-block mr-2 mb-1" size={28} />
                   Målgång!
@@ -327,6 +330,12 @@ const GameController: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
+      
+      {/* Help text */}
+      <div className="bg-gray-800 p-2 text-white text-xs">
+        <p>Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug overlay. 
+           Press <kbd className="bg-gray-700 px-1 rounded">C</kbd> to toggle checkpoint visibility.</p>
       </div>
     </div>
   );
