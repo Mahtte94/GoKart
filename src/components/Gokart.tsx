@@ -22,48 +22,39 @@ interface Boundaries {
   maxY: number;
 }
 
+interface GokartProps {
+  isGameActive?: boolean;
+  onPositionUpdate?: (position: { x: number; y: number }) => void;
+}
+
+const START_POSITION: Position = {
+  x: 440,
+  y: 43,
+  rotation: 270,
+};
 const Gokart = forwardRef<{ handleControlPress: (key: keyof KeyState, isPressed: boolean) => void }, {}>(
   (props, ref) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const rectangleSize = { width: 64, height: 64 };
-    const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const [position, setPosition] = useState({
-      x: 350,
-      y: 250,
-      rotation: 0,
-    });
-    const [speed] = useState<number>(8);
-    const [rotationSpeed] = useState<number>(5);
-    const [isFocused, setIsFocused] = useState<boolean>(false);
+const Gokart: React.FC<GokartProps> = ({ 
+  isGameActive = false,
+  onPositionUpdate
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const rectangleSize = { width: 64, height: 64 };
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const [currentDisplaySpeed, setCurrentDisplaySpeed] = useState<number>(0);
+  const [position, setPosition] = useState<Position>(START_POSITION);
+  const [speed] = useState<number>(8);
+  const [rotationSpeed] = useState<number>(5);
+  const [isFocused, setIsFocused] = useState<boolean>(false);
+  const [currentDisplaySpeed, setCurrentDisplaySpeed] = useState<number>(0);
 
-    const [boundaries, setBoundaries] = useState<Boundaries>({
-      minX: 0,
-      maxX: 700,
-      minY: 0,
-      maxY: 500,
-    });
-    
-    useImperativeHandle(ref, () => ({
-      handleControlPress: (key: keyof KeyState, isPressed: boolean) => {
-        keyState.current[key] = isPressed;
-      }
-    }));
-
-    useEffect(() => {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext("2d");
-      if (canvas && ctx) {
-        const img = new Image();
-        img.src = "/racetrack-map.png";
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          console.log("Track image loaded to canvas");
-        };
-      }
-    }, []);
+  const [boundaries, setBoundaries] = useState<Boundaries>({
+    minX: 0,
+    maxX: 700,
+    minY: 0,
+    maxY: 500,
+  });
 
     useEffect(() => {
       const updateBoundaries = () => {
@@ -133,10 +124,10 @@ const Gokart = forwardRef<{ handleControlPress: (key: keyof KeyState, isPressed:
     useEffect(() => {
       let animationFrameId: number;
 
-      const updatePosition = () => {
-        if (isFocused) {
-          setPosition((prev) => {
-            let newPos = { ...prev };
+    const updatePosition = () => {
+      if (isFocused) {
+        setPosition((prev) => {
+          let newPos = { ...prev };
 
             if (keyState.current.ArrowLeft) {
               newPos.rotation = newPos.rotation - rotationSpeed;
@@ -230,48 +221,35 @@ const Gokart = forwardRef<{ handleControlPress: (key: keyof KeyState, isPressed:
       window.addEventListener("keydown", handleKeyDown);
       window.addEventListener("keyup", handleKeyUp);
 
-      return () => {
-        window.removeEventListener("keydown", handleKeyDown);
-        window.removeEventListener("keyup", handleKeyUp);
-        cancelAnimationFrame(animationFrameId);
-      };
-    }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
 
-    return (
-      <div
-        ref={containerRef as React.RefObject<HTMLDivElement>}
-        className="relative w-full h-[600px] bg-white border border-gray-300 rounded-lg overflow-hidden outline-none"
-        tabIndex={0}
-      >
-        {/* Hidden canvas for pixel detection */}
-        <canvas
-          ref={canvasRef}
-          width={1440}
-          height={1024}
-          style={{ display: "none" }}
-        />
+  return (
+    <div
+      ref={containerRef as React.RefObject<HTMLDivElement>}
+      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
+      tabIndex={0}
+      style={{ outline: "none", height: "500px" }}
+    >
+      {/* Race track as background */}
+      <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
 
-        {/* Race track as background */}
-        <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
-
-        {/* Go-kart sprite on top */}
-        <GoKartSprite
-          x={position.x}
-          y={position.y}
-          rotation={position.rotation}
-        />
-        <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-          {!isFocused &&
-            "Klicka på spelplanen för att aktivera tangentbordskontroller"}
-        </div>
-        <div className="absolute bottom-2 left-2 text-lg text-white">
-          Speed: {currentDisplaySpeed.toFixed(1)}
-        </div>
+      {/* Go-kart sprite on top */}
+      <GoKartSprite
+        x={position.x}
+        y={position.y}
+        rotation={position.rotation}
+      />
+      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
+        {!isFocused &&
+          "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
-    );
-  });
-
-
-Gokart.displayName = "Gokart";
+    </div>
+  );
+};
 
 export default Gokart;

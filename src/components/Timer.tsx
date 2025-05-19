@@ -8,6 +8,9 @@ interface TimerProps {
   className?: string;
 }
 
+// TypeScript type for the timer interval
+type TimerInterval = ReturnType<typeof setTimeout>; // Use this instead of NodeJS.Timeout
+
 const Timer: React.FC<TimerProps> = ({
   initialTime = 0,
   isRunning = true,
@@ -32,14 +35,20 @@ const Timer: React.FC<TimerProps> = ({
 
   // Timer effect - only update local state
   useEffect(() => {
-    let interval: number | undefined = undefined;
+    let interval: TimerInterval | undefined = undefined;
     if (isRunning) {
-      interval = window.setInterval(() => {
-        setTime(prevTime => prevTime + 1);
+      interval = setInterval(() => {
+        setTime(prevTime => {
+          const newTime = prevTime + 1;
+          if (onTimeUpdate) {
+            onTimeUpdate(newTime);
+          }
+          return newTime;
+        });
       }, 1000);
     }
     return () => {
-      if (interval) window.clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [isRunning]);
   
