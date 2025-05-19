@@ -35,6 +35,23 @@ interface GokartRefHandle {
   getTerrainInfo: () => boolean;
 }
 
+// Track segment structure with proper types for all properties
+interface TrackSegment {
+  type: 'rect' | 'arc' | 'ellipse';
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  centerX?: number;
+  centerY?: number;
+  radius?: number;
+  radiusX?: number;
+  radiusY?: number;
+  startAngle?: number;
+  endAngle?: number;
+  isOuter: boolean;
+}
+
 // Align this with FINISH_LINE in GameController.tsx
 const START_POSITION: Position = {
   x: 440, // Match with FINISH_LINE.x in GameController
@@ -42,8 +59,8 @@ const START_POSITION: Position = {
   rotation: 270, // Pointing downward
 };
 
-// Define track segments for detection
-const TRACK_SEGMENTS = [
+// Define track segments for detection with proper type definitions
+const TRACK_SEGMENTS: TrackSegment[] = [
   // Outer track boundary
   {
     type: 'rect',
@@ -636,63 +653,73 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     for (const segment of TRACK_SEGMENTS) {
       if (segment.type === 'rect') {
         // Check if point is inside a rectangular segment
-        const isInside = (
-          kartCenterX >= segment.x && 
-          kartCenterX <= segment.x + segment.width && 
-          kartCenterY >= segment.y && 
-          kartCenterY <= segment.y + segment.height
-        );
-        
-        if (isInside) {
-          if (segment.isOuter) {
-            insideOuter = true;
-          } else {
-            insideInner = true;
+        if (segment.x !== undefined && segment.y !== undefined && 
+            segment.width !== undefined && segment.height !== undefined) {
+          const isInside = (
+            kartCenterX >= segment.x && 
+            kartCenterX <= segment.x + segment.width && 
+            kartCenterY >= segment.y && 
+            kartCenterY <= segment.y + segment.height
+          );
+          
+          if (isInside) {
+            if (segment.isOuter) {
+              insideOuter = true;
+            } else {
+              insideInner = true;
+            }
           }
         }
       } 
       else if (segment.type === 'arc') {
         // Check if point is inside an arc segment
-        const dx = kartCenterX - segment.centerX;
-        const dy = kartCenterY - segment.centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        // Check if distance is within track width of the arc radius
-        const isWithinTrackWidth = (
-          distance <= segment.radius && 
-          distance >= segment.radius - TRACK_WIDTH
-        );
-        
-        // Check if angle is within arc bounds
-        const angle = Math.atan2(dy, dx);
-        const normalizedAngle = (angle < 0) ? angle + 2 * Math.PI : angle;
-        let isWithinAngles = false;
-        
-        if (segment.startAngle <= segment.endAngle) {
-          isWithinAngles = normalizedAngle >= segment.startAngle && normalizedAngle <= segment.endAngle;
-        } else {
-          isWithinAngles = normalizedAngle >= segment.startAngle || normalizedAngle <= segment.endAngle;
-        }
-        
-        if (isWithinTrackWidth && isWithinAngles) {
-          if (segment.isOuter) {
-            insideOuter = true;
+        if (segment.centerX !== undefined && segment.centerY !== undefined && 
+            segment.radius !== undefined && segment.startAngle !== undefined && 
+            segment.endAngle !== undefined) {
+          const dx = kartCenterX - segment.centerX;
+          const dy = kartCenterY - segment.centerY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Check if distance is within track width of the arc radius
+          const isWithinTrackWidth = (
+            distance <= segment.radius && 
+            distance >= segment.radius - TRACK_WIDTH
+          );
+          
+          // Check if angle is within arc bounds
+          const angle = Math.atan2(dy, dx);
+          const normalizedAngle = (angle < 0) ? angle + 2 * Math.PI : angle;
+          let isWithinAngles = false;
+          
+          if (segment.startAngle <= segment.endAngle) {
+            isWithinAngles = normalizedAngle >= segment.startAngle && normalizedAngle <= segment.endAngle;
           } else {
-            insideInner = true;
+            isWithinAngles = normalizedAngle >= segment.startAngle || normalizedAngle <= segment.endAngle;
+          }
+          
+          if (isWithinTrackWidth && isWithinAngles) {
+            if (segment.isOuter) {
+              insideOuter = true;
+            } else {
+              insideInner = true;
+            }
           }
         }
       }
       else if (segment.type === 'ellipse') {
         // Check if point is inside an elliptical segment
-        const normalizedX = (kartCenterX - segment.centerX) / segment.radiusX;
-        const normalizedY = (kartCenterY - segment.centerY) / segment.radiusY;
-        const distance = normalizedX * normalizedX + normalizedY * normalizedY;
-        
-        if (distance <= 1) {
-          if (segment.isOuter) {
-            insideOuter = true;
-          } else {
-            insideInner = true;
+        if (segment.centerX !== undefined && segment.centerY !== undefined && 
+            segment.radiusX !== undefined && segment.radiusY !== undefined) {
+          const normalizedX = (kartCenterX - segment.centerX) / segment.radiusX;
+          const normalizedY = (kartCenterY - segment.centerY) / segment.radiusY;
+          const distance = normalizedX * normalizedX + normalizedY * normalizedY;
+          
+          if (distance <= 1) {
+            if (segment.isOuter) {
+              insideOuter = true;
+            } else {
+              insideInner = true;
+            }
           }
         }
       }

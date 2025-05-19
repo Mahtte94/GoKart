@@ -34,9 +34,9 @@ const CHECKPOINTS = [
 
 // Finish line at the top of the track
 const FINISH_LINE = {
-  x: 440, // Original position from first screenshot
-  y: 0, 
-  width: 80, 
+  x: 448, // Original position from first screenshot
+  y: 104, 
+  width: 20, 
   height: 100, 
 };
 
