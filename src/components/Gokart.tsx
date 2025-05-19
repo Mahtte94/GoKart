@@ -1,3 +1,5 @@
+// Denna fil löser problemet med canvas är null genom att använda en tryggare TypeScript-implementering
+
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import GoKartSprite from "./GoKartSprite";
 import RaceTrack from "../assets/RaceTrack";
@@ -27,21 +29,23 @@ interface GokartProps {
   onPositionUpdate?: (position: { x: number; y: number }) => void;
 }
 
-const START_POSITION: Position = {
-  x: 440,
-  y: 43,
-  rotation: 270,
-};
-const Gokart = forwardRef<{ handleControlPress: (key: keyof KeyState, isPressed: boolean) => void }, {}>(
-  (props, ref) => {
+// Define the ref type interface
+interface GokartRefHandle {
+  handleControlPress: (key: keyof KeyState, isPressed: boolean) => void;
+}
 
-const Gokart: React.FC<GokartProps> = ({ 
-  isGameActive = false,
-  onPositionUpdate
-}) => {
+const START_POSITION: Position = {
+  x: 440, // Matchar FINISH_LINE.x
+  y: 50,  // Strax under mållinjen för att undvika omedelbar lap-triggering
+  rotation: 270, // Pekar nedåt
+};
+
+// Use forwardRef to expose methods to parent component
+const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
+  const { isGameActive = false, onPositionUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [position, setPosition] = useState<Position>(START_POSITION);
   const [speed] = useState<number>(8);
@@ -56,181 +60,246 @@ const Gokart: React.FC<GokartProps> = ({
     maxY: 500,
   });
 
-    useEffect(() => {
-      const updateBoundaries = () => {
-        if (containerRef.current) {
-          const containerRect = containerRef.current.getBoundingClientRect();
-          setBoundaries({
-            minX: 0,
-            maxX: containerRect.width - rectangleSize.width,
-            minY: 0,
-            maxY: containerRect.height - rectangleSize.height,
-          });
-        }
-      };
+  const keyState = useRef<KeyState>({
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false,
+  });
 
-      updateBoundaries();
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    handleControlPress: (key: keyof KeyState, isPressed: boolean) => {
+      keyState.current[key] = isPressed;
+    }
+  }));
 
-      window.addEventListener("resize", updateBoundaries);
+  useEffect(() => {
+    const updateBoundaries = () => {
+      if (containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        setBoundaries({
+          minX: 0,
+          maxX: containerRect.width - rectangleSize.width,
+          minY: 0,
+          maxY: containerRect.height - rectangleSize.height,
+        });
+      }
+    };
 
-      return () => {
-        window.removeEventListener("resize", updateBoundaries);
-      };
-    }, []);
+    updateBoundaries();
+    window.addEventListener("resize", updateBoundaries);
+    return () => {
+      window.removeEventListener("resize", updateBoundaries);
+    };
+  }, []);
 
-
-    const keyState = useRef<KeyState>({
-      ArrowUp: false,
-      ArrowDown: false,
-      ArrowLeft: false,
-      ArrowRight: false,
-    });
-
-    useEffect(() => {
-      const checkFocus = () => {
-        if (document.activeElement === containerRef.current) {
-          setIsFocused(true);
-        } else {
-          // Also check if any parent element is focused
-          let element = containerRef.current?.parentElement;
-          let parentHasFocus = false;
-
-          while (element) {
-            if (element === document.activeElement) {
-              parentHasFocus = true;
-              break;
+  // Create a canvas for off-screen color detection
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1440;
+      canvas.height = 1024;
+      canvasRef.current = canvas;
+      
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Draw the track to the off-screen canvas for color detection
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        };
+        
+        // Försök med olika sökvägar till bilden
+        img.src = '/racetrack-map.png'; 
+        
+        img.onerror = () => {
+          console.log("Failed to load main path, trying fallback paths...");
+          // Prova olika sökvägar
+          const paths = [
+            './racetrack-map.png',
+            '/public/racetrack-map.png',
+            'src/public/racetrack-map.png',
+            '/assets/racetrack-map.png',
+            '../public/racetrack-map.png'
+          ];
+          
+          let pathIndex = 0;
+          const tryNextPath = () => {
+            if (pathIndex < paths.length) {
+              img.src = paths[pathIndex];
+              pathIndex++;
+            } else {
+              console.error("Could not load track image from any path. Check file location.");
             }
-            element = element.parentElement;
+          };
+          
+          img.onerror = tryNextPath;
+          tryNextPath();
+        };
+      }
+    } catch (error) {
+      console.error("Error setting up canvas:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkFocus = () => {
+      if (document.activeElement === containerRef.current) {
+        setIsFocused(true);
+      } else {
+        // Also check if any parent element is focused
+        let element = containerRef.current?.parentElement;
+        let parentHasFocus = false;
+
+        while (element) {
+          if (element === document.activeElement) {
+            parentHasFocus = true;
+            break;
           }
-
-          setIsFocused(parentHasFocus);
+          element = element.parentElement;
         }
-      };
 
-      checkFocus();
+        setIsFocused(parentHasFocus);
+      }
+    };
 
-      const handleFocusIn = () => checkFocus();
-      const handleFocusOut = () => checkFocus();
+    checkFocus();
+    const handleFocusIn = () => checkFocus();
+    const handleFocusOut = () => checkFocus();
 
-      document.addEventListener("focusin", handleFocusIn);
-      document.addEventListener("focusout", handleFocusOut);
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
 
-      return () => {
-        document.removeEventListener("focusin", handleFocusIn);
-        document.removeEventListener("focusout", handleFocusOut);
-      };
-    }, []);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
 
-    useEffect(() => {
-      let animationFrameId: number;
+  useEffect(() => {
+    let animationFrameId: number;
 
     const updatePosition = () => {
-      if (isFocused) {
+      if (isFocused || isGameActive) {
         setPosition((prev) => {
           let newPos = { ...prev };
 
-            if (keyState.current.ArrowLeft) {
-              newPos.rotation = newPos.rotation - rotationSpeed;
-            }
-            if (keyState.current.ArrowRight) {
-              newPos.rotation = newPos.rotation + rotationSpeed;
-            }
+          if (keyState.current.ArrowLeft) {
+            newPos.rotation = newPos.rotation - rotationSpeed;
+          }
+          if (keyState.current.ArrowRight) {
+            newPos.rotation = newPos.rotation + rotationSpeed;
+          }
 
-            const radians = (newPos.rotation * Math.PI) / 180;
+          const radians = (newPos.rotation * Math.PI) / 180;
+          let currentSpeed = speed;
 
-            // Read pixel color under car center
+          // Säkrare hantering av canvas
+          try {
             const canvas = canvasRef.current;
-            const ctx = canvas?.getContext("2d");
-            let currentSpeed = speed;
-
-            if (ctx) {
-              const container = containerRef.current;
-              if (container) {
+            if (canvas) {
+              const ctx = canvas.getContext('2d');
+              if (ctx && containerRef.current) {
+                const container = containerRef.current;
                 const scaleX = canvas.width / container.clientWidth;
                 const scaleY = canvas.height / container.clientHeight;
 
                 const canvasX = Math.floor((newPos.x + 32) * scaleX);
                 const canvasY = Math.floor((newPos.y + 32) * scaleY);
 
-                const imageData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
-                const [r, g, b] = imageData;
+                try {
+                  const imageData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
+                  const [r, g, b] = imageData;
 
-                // Grass color check (tolerance around #2A922C)
-                if (
-                  r >= 30 &&
-                  r <= 60 &&
-                  g >= 130 &&
-                  g <= 160 &&
-                  b >= 30 &&
-                  b <= 60
-                ) {
-                  currentSpeed = speed * 0.5; // Slow down to 50% on grass
+                  // Grass color check (tolerance around #2A922C)
+                  if (
+                    r >= 30 &&
+                    r <= 60 &&
+                    g >= 130 &&
+                    g <= 160 &&
+                    b >= 30 &&
+                    b <= 60
+                  ) {
+                    currentSpeed = speed * 0.5; // Slow down to 50% on grass
+                  }
+                } catch (e) {
+                  // Om getImageData misslyckas (t.ex. säkerhetsskäl), fortsätt utan färgkoll
+                  console.warn("Could not get pixel data:", e);
                 }
               }
             }
+          } catch (e) {
+            console.warn("Canvas error:", e);
+          }
 
-            // Update live speed display before calculating movement
-            setCurrentDisplaySpeed(currentSpeed);
+          // Update live speed display before calculating movement
+          setCurrentDisplaySpeed(currentSpeed);
 
-            let potentialX = newPos.x;
-            let potentialY = newPos.y;
+          let potentialX = newPos.x;
+          let potentialY = newPos.y;
 
-            if (keyState.current.ArrowUp) {
-              potentialX += Math.sin(radians) * currentSpeed;
-              potentialY -= Math.cos(radians) * currentSpeed;
-            }
-            if (keyState.current.ArrowDown) {
-              potentialX -= Math.sin(radians) * currentSpeed;
-              potentialY += Math.cos(radians) * currentSpeed;
-            }
+          if (keyState.current.ArrowUp) {
+            potentialX += Math.sin(radians) * currentSpeed;
+            potentialY -= Math.cos(radians) * currentSpeed;
+          }
+          if (keyState.current.ArrowDown) {
+            potentialX -= Math.sin(radians) * currentSpeed;
+            potentialY += Math.cos(radians) * currentSpeed;
+          }
 
-            newPos.x = Math.max(
-              boundaries.minX,
-              Math.min(boundaries.maxX, potentialX)
-            );
-            newPos.y = Math.max(
-              boundaries.minY,
-              Math.min(boundaries.maxY, potentialY)
-            );
+          newPos.x = Math.max(
+            boundaries.minX,
+            Math.min(boundaries.maxX, potentialX)
+          );
+          newPos.y = Math.max(
+            boundaries.minY,
+            Math.min(boundaries.maxY, potentialY)
+          );
 
-            return newPos;
-          });
-        }
+          // Call the position update callback if provided
+          if (onPositionUpdate) {
+            onPositionUpdate({ x: newPos.x, y: newPos.y });
+          }
 
-        animationFrameId = requestAnimationFrame(updatePosition);
-      };
+          return newPos;
+        });
+      }
 
       animationFrameId = requestAnimationFrame(updatePosition);
+    };
 
-      const handleKeyDown = (e: KeyboardEvent): void => {
-        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-          e.preventDefault();
+    animationFrameId = requestAnimationFrame(updatePosition);
 
-          if (e.key in keyState.current) {
-            keyState.current[e.key as keyof KeyState] = true;
-          }
-        }
-      };
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
 
-      const handleKeyUp = (e: KeyboardEvent): void => {
         if (e.key in keyState.current) {
-          keyState.current[e.key as keyof KeyState] = false;
+          keyState.current[e.key as keyof KeyState] = true;
         }
-      };
+      }
+    };
 
-      window.addEventListener("keydown", handleKeyDown);
-      window.addEventListener("keyup", handleKeyUp);
+    const handleKeyUp = (e: KeyboardEvent): void => {
+      if (e.key in keyState.current) {
+        keyState.current[e.key as keyof KeyState] = false;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused, boundaries, boundaries]);
+  }, [speed, rotationSpeed, isFocused, boundaries, isGameActive, onPositionUpdate]);
 
   return (
     <div
-      ref={containerRef as React.RefObject<HTMLDivElement>}
+      ref={containerRef}
       className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       style={{ outline: "none", height: "500px" }}
@@ -250,6 +319,9 @@ const Gokart: React.FC<GokartProps> = ({
       </div>
     </div>
   );
-};
+});
+
+// Add display name for better debugging
+Gokart.displayName = 'Gokart';
 
 export default Gokart;
