@@ -10,6 +10,12 @@ import MobileControls from "./MobileControls";
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
+// Define the interface for the Gokart component ref
+interface GokartRefHandle {
+  handleControlPress: (key: string, isPressed: boolean) => void;
+  getTerrainInfo: () => boolean;
+}
+
 // Updated checkpoint positions to fit the 896x600 size
 const CHECKPOINTS = [
   {
@@ -52,6 +58,10 @@ const GameController: React.FC = () => {
   const canCountLapRef = useRef<boolean>(false);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   
+  // Kart physics data
+  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
+  const [maxSpeed, setMaxSpeed] = useState<number>(8);
+  
   // UI and debugging
   const [showDebug, setShowDebug] = useState<boolean>(true);
   const [checkpointsVisible, setCheckpointsVisible] = useState<boolean>(true);
@@ -59,10 +69,7 @@ const GameController: React.FC = () => {
   
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
-  const gokartRef = useRef<{ 
-    handleControlPress: (key: string, isPressed: boolean) => void;
-    getTerrainInfo?: () => boolean;
-  }>(null);
+  const gokartRef = useRef<GokartRefHandle>(null);
 
   // Update time when Timer component updates
   const handleTimeUpdate = useCallback((time: number) => {
@@ -85,7 +92,7 @@ const GameController: React.FC = () => {
     lastPositionRef.current = position;
     
     // Update terrain info from the kart component
-    if (gokartRef.current && gokartRef.current.getTerrainInfo) {
+    if (gokartRef.current) {
       setIsOnTrack(gokartRef.current.getTerrainInfo());
     }
     
@@ -142,6 +149,12 @@ const GameController: React.FC = () => {
       }, 1000);
     }
   }, [handleFinish, totalLaps, showDebug]);
+
+  // Receive speed updates from the Gokart component
+  const handleSpeedUpdate = useCallback((speed: number, maxSpeedValue: number) => {
+    setCurrentSpeed(speed);
+    setMaxSpeed(maxSpeedValue);
+  }, []);
 
   // Start/restart the game
   const startGame = useCallback(() => {
@@ -303,6 +316,7 @@ const GameController: React.FC = () => {
               ref={gokartRef}
               isGameActive={gameState === 'playing'}
               onPositionUpdate={handlePositionUpdate}
+              onSpeedUpdate={handleSpeedUpdate}
             />
             
             {/* Finish line */}
@@ -333,6 +347,8 @@ const GameController: React.FC = () => {
                 currentLap={currentLap}
                 canCountLap={canCountLapRef.current}
                 isOnTrack={isOnTrack}
+                currentSpeed={currentSpeed}
+                maxSpeed={maxSpeed}
               />
             )}
             

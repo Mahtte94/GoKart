@@ -26,11 +26,13 @@ interface Boundaries {
 interface GokartProps {
   isGameActive?: boolean;
   onPositionUpdate?: (position: { x: number; y: number }) => void;
+  onSpeedUpdate?: (speed: number, maxSpeed: number) => void;
 }
 
 // Define the ref type interface
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
+  getTerrainInfo: () => boolean;
 }
 
 // Align this with FINISH_LINE in GameController.tsx
@@ -42,15 +44,30 @@ const START_POSITION: Position = {
 
 // Use forwardRef to expose methods to parent component
 const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
-  const { isGameActive = false, onPositionUpdate } = props;
+  const { isGameActive = false, onPositionUpdate, onSpeedUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
+  // State variables
   const [position, setPosition] = useState<Position>(START_POSITION);
-  const [speed] = useState<number>(8);
+  const [baseSpeed] = useState<number>(8); // Base speed when on track
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
-  const [rotationSpeed] = useState<number>(5);
+  const [rotation, setRotation] = useState<number>(START_POSITION.rotation);
+  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
+  const [maxSpeed, setMaxSpeed] = useState<number>(baseSpeed);
+  const [acceleration] = useState<number>(0.3); // How quickly the kart speeds up
+  const [deceleration] = useState<number>(0.15); // How quickly the kart slows down
+  const [rotationSpeed] = useState<number>(5); // Base rotation speed
   const [isFocused, setIsFocused] = useState<boolean>(false);
+  
+  // Visual effects for terrain
+  const [shakeFactor, setShakeFactor] = useState<number>(0);
+  
+  // Constants for physics
+  const GRASS_SPEED_FACTOR = 0.4; // 40% speed on grass (more noticeable)
+  const GRASS_ROTATION_FACTOR = 0.7; // 70% rotation speed on grass
+  const GRASS_DRAG = 1.2; // Higher drag on grass
+  const MAX_SHAKE = 2; // Maximum shake pixels when on grass
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
@@ -63,6 +80,8 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   useEffect(() => {
     if (isGameActive) {
       setPosition(START_POSITION);
+      setRotation(START_POSITION.rotation);
+      setCurrentSpeed(0);
     }
   }, [isGameActive]);
 
@@ -137,62 +156,116 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     };
   }, []);
 
+  // Set shake effect when off-track
+  useEffect(() => {
+    if (!isOnTrack && currentSpeed > 2) {
+      // Add random shake when on grass and moving
+      const shake = () => {
+        setShakeFactor(Math.random() * MAX_SHAKE * (currentSpeed / baseSpeed));
+      };
+      const shakeInterval = setInterval(shake, 100);
+      return () => {
+        clearInterval(shakeInterval);
+        setShakeFactor(0);
+      };
+    } else {
+      setShakeFactor(0);
+    }
+  }, [isOnTrack, currentSpeed, baseSpeed]);
+
   useEffect(() => {
     let animationFrameId: number;
 
     const updatePosition = () => {
       if ((isFocused || isGameActive) && isGameActive) {
-        setPosition((prev) => {
-          let newPos = { ...prev };
-
+        setRotation((prevRotation) => {
+          let newRotation = prevRotation;
+          
+          // Apply rotation based on terrain
+          const effectiveRotationSpeed = isOnTrack 
+            ? rotationSpeed 
+            : rotationSpeed * GRASS_ROTATION_FACTOR;
+          
           if (keyState.current.ArrowLeft) {
-            newPos.rotation = newPos.rotation - rotationSpeed;
+            newRotation = newRotation - effectiveRotationSpeed;
           }
           if (keyState.current.ArrowRight) {
-            newPos.rotation = newPos.rotation + rotationSpeed;
+            newRotation = newRotation + effectiveRotationSpeed;
           }
-
-          const radians = (newPos.rotation * Math.PI) / 180;
-          let speedFactor = speed;
-
-          // Simplified terrain detection - we'll use position instead of color detection
-          // This avoids issues with loading external images
           
-          // Rough track boundaries - these are approximate values based on the track SVG
-          const onTrack = isPositionOnTrack(newPos.x, newPos.y);
-          setIsOnTrack(onTrack); // Update the terrain state
+          return newRotation;
+        });
+        
+        setCurrentSpeed((prevSpeed) => {
+          let newSpeed = prevSpeed;
           
-          if (!onTrack) {
-            speedFactor = speed * 0.5; // Slow down to 50% on grass
-          }
-
-          let potentialX = newPos.x;
-          let potentialY = newPos.y;
-
+          // Determine speed factors based on terrain
+          const terrainSpeedFactor = isOnTrack ? 1 : GRASS_SPEED_FACTOR;
+          const terrainDragFactor = isOnTrack ? 1 : GRASS_DRAG;
+          
+          // Set max speed based on terrain
+          setMaxSpeed(baseSpeed * terrainSpeedFactor);
+          
+          // Apply acceleration/deceleration
           if (keyState.current.ArrowUp) {
-            potentialX += Math.sin(radians) * speedFactor;
-            potentialY -= Math.cos(radians) * speedFactor;
+            newSpeed += acceleration * terrainSpeedFactor;
+          } else if (keyState.current.ArrowDown) {
+            newSpeed -= acceleration * terrainSpeedFactor;
+          } else {
+            // Natural deceleration when no keys are pressed
+            if (newSpeed > 0) {
+              newSpeed -= deceleration * terrainDragFactor;
+            } else if (newSpeed < 0) {
+              newSpeed += deceleration * terrainDragFactor;
+            }
+            
+            // Clamp to zero if very small
+            if (Math.abs(newSpeed) < 0.1) {
+              newSpeed = 0;
+            }
           }
-          if (keyState.current.ArrowDown) {
-            potentialX -= Math.sin(radians) * speedFactor;
-            potentialY += Math.cos(radians) * speedFactor;
+          
+          // Clamp to max speed in either direction
+          newSpeed = Math.min(maxSpeed, Math.max(-maxSpeed * 0.6, newSpeed));
+          
+          // Report speed to parent component
+          if (onSpeedUpdate) {
+            onSpeedUpdate(newSpeed, maxSpeed);
           }
-
-          newPos.x = Math.max(
-            boundaries.minX,
-            Math.min(boundaries.maxX, potentialX)
-          );
-          newPos.y = Math.max(
-            boundaries.minY,
-            Math.min(boundaries.maxY, potentialY)
-          );
-
-          // Call the position update callback if provided
+          
+          return newSpeed;
+        });
+        
+        setPosition((prev) => {
+          // Convert rotation to radians
+          const radians = (rotation * Math.PI) / 180;
+          
+          // Calculate position change based on speed and rotation
+          const deltaX = Math.sin(radians) * currentSpeed;
+          const deltaY = -Math.cos(radians) * currentSpeed;
+          
+          // Apply movement
+          let newX = prev.x + deltaX + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
+          let newY = prev.y + deltaY + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
+          
+          // Check boundaries
+          newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
+          newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
+          
+          // Check if new position is on track and update
+          const onTrack = isPositionOnTrack(newX, newY);
+          setIsOnTrack(onTrack);
+          
+          // Provide position update to parent component
           if (onPositionUpdate) {
-            onPositionUpdate({ x: newPos.x, y: newPos.y });
+            onPositionUpdate({ x: newX, y: newY });
           }
-
-          return newPos;
+          
+          return {
+            x: newX,
+            y: newY,
+            rotation: rotation
+          };
         });
       }
 
@@ -225,7 +298,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [speed, rotationSpeed, isFocused, boundaries, isGameActive, onPositionUpdate]);
+  }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor, onSpeedUpdate]);
 
   // Helper function to determine if the kart is on the track based on position
   const isPositionOnTrack = (x: number, y: number): boolean => {
@@ -310,16 +383,52 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     }
   };
 
+  // Visual effect elements
+  const renderTerrainEffects = () => {
+    if (!isOnTrack && currentSpeed > 1) {
+      return (
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Small dust particles when on grass */}
+          <div className="absolute" 
+            style={{
+              left: `${position.x + 32}px`,
+              top: `${position.y + 32}px`,
+              zIndex: 10
+            }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div 
+                key={i}
+                className="absolute bg-yellow-100 rounded-full opacity-40 animate-ping"
+                style={{
+                  width: `${3 + Math.random() * 4}px`,
+                  height: `${3 + Math.random() * 4}px`,
+                  left: `${(Math.random() - 0.5) * 30}px`,
+                  top: `${(Math.random() - 0.5) * 30}px`,
+                  animationDuration: `${0.5 + Math.random() * 0.5}s`,
+                  animationDelay: `${Math.random() * 0.2}s`
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div
       ref={containerRef}
       className="relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      style={{ outline: "none", width: "896px", height: "600px" }} // Exact dimensions from the original screenshot
+      style={{ outline: "none", width: "896px", height: "600px" }} 
       onClick={handleContainerClick}
     >
       {/* Race track as background */}
       <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
+
+      {/* Visual effects for terrain */}
+      {renderTerrainEffects()}
 
       {/* Go-kart sprite on top */}
       <GoKartSprite
@@ -327,6 +436,24 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         y={position.y}
         rotation={position.rotation}
       />
+      
+      {/* Speed indicator (optional for debugging) */}
+      {isGameActive && (
+        <div 
+          className={`absolute bottom-10 left-2 text-xs px-2 py-1 rounded ${
+            isOnTrack ? 'bg-blue-800' : 'bg-yellow-800'} text-white opacity-60`}
+        >
+          <div className="flex items-center gap-1">
+            <div className="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full ${isOnTrack ? 'bg-blue-500' : 'bg-yellow-500'}`} 
+                style={{ width: `${(Math.abs(currentSpeed) / baseSpeed) * 100}%` }}
+              />
+            </div>
+            <span>{Math.round(Math.abs(currentSpeed) * 10) / 10}</span>
+          </div>
+        </div>
+      )}
       
       {/* Focus notification */}
       <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
