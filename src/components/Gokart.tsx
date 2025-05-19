@@ -48,14 +48,15 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
   const [position, setPosition] = useState<Position>(START_POSITION);
   const [speed] = useState<number>(8);
+  const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
-    maxX: 700,
+    maxX: 896 - rectangleSize.width,
     minY: 0,
-    maxY: 500,
+    maxY: 600 - rectangleSize.height,
   });
 
   // Reset position when game state changes
@@ -78,7 +79,8 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       if (key in keyState.current) {
         keyState.current[key as keyof KeyState] = isPressed;
       }
-    }
+    },
+    getTerrainInfo: () => isOnTrack
   }));
 
   useEffect(() => {
@@ -151,27 +153,29 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           }
 
           const radians = (newPos.rotation * Math.PI) / 180;
-          let currentSpeed = speed;
+          let speedFactor = speed;
 
           // Simplified terrain detection - we'll use position instead of color detection
           // This avoids issues with loading external images
           
           // Rough track boundaries - these are approximate values based on the track SVG
-          const isOnTrack = isPositionOnTrack(newPos.x, newPos.y);
-          if (!isOnTrack) {
-            currentSpeed = speed * 0.5; // Slow down to 50% on grass
+          const onTrack = isPositionOnTrack(newPos.x, newPos.y);
+          setIsOnTrack(onTrack); // Update the terrain state
+          
+          if (!onTrack) {
+            speedFactor = speed * 0.5; // Slow down to 50% on grass
           }
 
           let potentialX = newPos.x;
           let potentialY = newPos.y;
 
           if (keyState.current.ArrowUp) {
-            potentialX += Math.sin(radians) * currentSpeed;
-            potentialY -= Math.cos(radians) * currentSpeed;
+            potentialX += Math.sin(radians) * speedFactor;
+            potentialY -= Math.cos(radians) * speedFactor;
           }
           if (keyState.current.ArrowDown) {
-            potentialX -= Math.sin(radians) * currentSpeed;
-            potentialY += Math.cos(radians) * currentSpeed;
+            potentialX -= Math.sin(radians) * speedFactor;
+            potentialY += Math.cos(radians) * speedFactor;
           }
 
           newPos.x = Math.max(
@@ -225,23 +229,78 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
   // Helper function to determine if the kart is on the track based on position
   const isPositionOnTrack = (x: number, y: number): boolean => {
-    // This is a simplified approach - ideally we would have actual track boundaries
-    // For now, we'll use an approximate elliptical track shape
+    // Track shape is complex, so we'll use multiple segments to define the track
+    // These are approximations based on visual observation of your screenshots
     
-    const centerX = 440; // Center of the track
-    const centerY = 250; 
-    const radiusX = 300; // Horizontal radius
-    const radiusY = 200; // Vertical radius
+    // Main track segments - this divides the track into sections
+    const segments = [
+      // Top straight section (finish line area)
+      (posX: number, posY: number) => {
+        return posX >= 350 && posX <= 650 && posY >= 0 && posY <= 120;
+      },
+      // Right curve
+      (posX: number, posY: number) => {
+        // Right top curve
+        const centerX = 700;
+        const centerY = 200;
+        const radiusX = 130;
+        const radiusY = 100;
+        const normalizedX = (posX - centerX) / radiusX;
+        const normalizedY = (posY - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+      },
+      // Right bottom curve (near CP2)
+      (posX: number, posY: number) => {
+        const centerX = 680;
+        const centerY = 400;
+        const radiusX = 120;
+        const radiusY = 120;
+        const normalizedX = (posX - centerX) / radiusX;
+        const normalizedY = (posY - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+      },
+      // Bottom section connecting right and left curves
+      (posX: number, posY: number) => {
+        return posX >= 300 && posX <= 650 && posY >= 380 && posY <= 480;
+      },
+      // Left bottom curve (near CP1)
+      (posX: number, posY: number) => {
+        const centerX = 220;
+        const centerY = 380;
+        const radiusX = 120;
+        const radiusY = 120;
+        const normalizedX = (posX - centerX) / radiusX;
+        const normalizedY = (posY - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+      },
+      // Left upper curve
+      (posX: number, posY: number) => {
+        const centerX = 200;
+        const centerY = 200;
+        const radiusX = 120;
+        const radiusY = 100;
+        const normalizedX = (posX - centerX) / radiusX;
+        const normalizedY = (posY - centerY) / radiusY;
+        return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+      },
+      // Center-left section connecting curves
+      (posX: number, posY: number) => {
+        return posX >= 150 && posX <= 370 && posY >= 200 && posY <= 380;
+      },
+      // Center-right section connecting curves
+      (posX: number, posY: number) => {
+        return posX >= 520 && posX <= 750 && posY >= 200 && posY <= 380;
+      }
+    ];
     
-    // Calculate normalized distance from center
-    const normalizedX = (x - centerX) / radiusX;
-    const normalizedY = (y - centerY) / radiusY;
+    // Check if position is in any of the track segments
+    for (const segment of segments) {
+      if (segment(x, y)) {
+        return true;
+      }
+    }
     
-    // If point is inside the elliptical track (with some margin)
-    const distanceSquared = normalizedX * normalizedX + normalizedY * normalizedY;
-    
-    // On track if distance is between inner and outer track boundaries
-    return distanceSquared <= 1.2 && distanceSquared >= 0.7;
+    return false;
   };
 
   // Function to handle clicking on the container (for focus)
@@ -254,9 +313,9 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
+      className="relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      style={{ outline: "none", height: "500px" }}
+      style={{ outline: "none", width: "896px", height: "600px" }} // Exact dimensions from the original screenshot
       onClick={handleContainerClick}
     >
       {/* Race track as background */}

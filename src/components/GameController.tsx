@@ -1,4 +1,3 @@
-// src/components/GameController.tsx
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import Gokart from "./Gokart";
 import Timer from "./Timer";
@@ -11,25 +10,25 @@ import MobileControls from "./MobileControls";
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
-// Updated checkpoint positions based on the track
+// Updated checkpoint positions to fit the 896x600 size
 const CHECKPOINTS = [
   {
     id: 1,
     x: 204,
     y: 380,
-    radius: 100,
+    radius: 80,
   },
   {
     id: 2,
-    x: 691, // Right curve of the track
+    x: 691, 
     y: 400,
-    radius: 100,
+    radius: 80,
   }
 ];
 
 // Finish line at the top of the track
 const FINISH_LINE = {
-  x: 440, // Adjusted based on the image
+  x: 440, // Original position from first screenshot
   y: 0, 
   width: 80, 
   height: 100, 
@@ -51,6 +50,7 @@ const GameController: React.FC = () => {
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const checkpointsPassedRef = useRef<boolean[]>([false, false]);
   const canCountLapRef = useRef<boolean>(false);
+  const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   
   // UI and debugging
   const [showDebug, setShowDebug] = useState<boolean>(true);
@@ -59,7 +59,10 @@ const GameController: React.FC = () => {
   
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
-  const gokartRef = useRef<{ handleControlPress: (key: string, isPressed: boolean) => void }>(null);
+  const gokartRef = useRef<{ 
+    handleControlPress: (key: string, isPressed: boolean) => void;
+    getTerrainInfo?: () => boolean;
+  }>(null);
 
   // Update time when Timer component updates
   const handleTimeUpdate = useCallback((time: number) => {
@@ -80,6 +83,11 @@ const GameController: React.FC = () => {
   const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
     // Store the last position
     lastPositionRef.current = position;
+    
+    // Update terrain info from the kart component
+    if (gokartRef.current && gokartRef.current.getTerrainInfo) {
+      setIsOnTrack(gokartRef.current.getTerrainInfo());
+    }
     
     // Debug position info
     if (showDebug) {
@@ -286,7 +294,8 @@ const GameController: React.FC = () => {
 
       {/* Main game area */}
       <div className="flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl">
+        {/* Changed to a fixed width container to match exact dimensions */}
+        <div className="w-[896px]"> 
           <div className="relative">
             {/* Main game elements */}
             <Gokart 
@@ -323,6 +332,7 @@ const GameController: React.FC = () => {
                 checkpointsPassed={checkpointsPassedRef.current}
                 currentLap={currentLap}
                 canCountLap={canCountLapRef.current}
+                isOnTrack={isOnTrack}
               />
             )}
             

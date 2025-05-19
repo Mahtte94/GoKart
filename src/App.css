@@ -2,15 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-
 #root {
   box-sizing: border-box;
-  max-width: 1280px;
+  max-width: 1024px; /* Adjusted to fit the 896px game width plus some padding */
   margin: 0 auto; 
-  padding: 2rem;
+  padding: 0.5rem; /* Minimal padding to allow the game to be as large as possible */
 }
 
 body {
   height: 100vh;
+  overflow: hidden; /* Prevent scrolling when game is larger */
 }
 
+/* Add responsive adjustments for the game area */
+@media (max-width: 1440px) {
+  #root {
+    padding: 0.5rem;
+  }
+}
