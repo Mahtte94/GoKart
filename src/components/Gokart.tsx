@@ -1,5 +1,4 @@
-// Denna fil löser problemet med canvas är null genom att använda en tryggare TypeScript-implementering
-
+// src/components/Gokart.tsx
 import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import GoKartSprite from "./GoKartSprite";
 import RaceTrack from "../assets/RaceTrack";
@@ -31,13 +30,14 @@ interface GokartProps {
 
 // Define the ref type interface
 interface GokartRefHandle {
-  handleControlPress: (key: keyof KeyState, isPressed: boolean) => void;
+  handleControlPress: (key: string, isPressed: boolean) => void;
 }
 
+// Align this with FINISH_LINE in GameController.tsx
 const START_POSITION: Position = {
-  x: 440, // Matchar FINISH_LINE.x
-  y: 50,  // Strax under mållinjen för att undvika omedelbar lap-triggering
-  rotation: 270, // Pekar nedåt
+  x: 440, // Match with FINISH_LINE.x in GameController
+  y: 50,  // Slightly below the finish line
+  rotation: 270, // Pointing downward
 };
 
 // Use forwardRef to expose methods to parent component
@@ -45,13 +45,11 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const { isGameActive = false, onPositionUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const rectangleSize = { width: 64, height: 64 };
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const [position, setPosition] = useState<Position>(START_POSITION);
   const [speed] = useState<number>(8);
   const [rotationSpeed] = useState<number>(5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  const [currentDisplaySpeed, setCurrentDisplaySpeed] = useState<number>(0);
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
@@ -59,6 +57,13 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     minY: 0,
     maxY: 500,
   });
+
+  // Reset position when game state changes
+  useEffect(() => {
+    if (isGameActive) {
+      setPosition(START_POSITION);
+    }
+  }, [isGameActive]);
 
   const keyState = useRef<KeyState>({
     ArrowUp: false,
@@ -69,8 +74,10 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
-    handleControlPress: (key: keyof KeyState, isPressed: boolean) => {
-      keyState.current[key] = isPressed;
+    handleControlPress: (key: string, isPressed: boolean) => {
+      if (key in keyState.current) {
+        keyState.current[key as keyof KeyState] = isPressed;
+      }
     }
   }));
 
@@ -92,55 +99,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     return () => {
       window.removeEventListener("resize", updateBoundaries);
     };
-  }, []);
-
-  // Create a canvas for off-screen color detection
-  useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = 1440;
-      canvas.height = 1024;
-      canvasRef.current = canvas;
-      
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Draw the track to the off-screen canvas for color detection
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        };
-        
-        // Försök med olika sökvägar till bilden
-        img.src = '/racetrack-map.png'; 
-        
-        img.onerror = () => {
-          console.log("Failed to load main path, trying fallback paths...");
-          // Prova olika sökvägar
-          const paths = [
-            './racetrack-map.png',
-            '/public/racetrack-map.png',
-            'src/public/racetrack-map.png',
-            '/assets/racetrack-map.png',
-            '../public/racetrack-map.png'
-          ];
-          
-          let pathIndex = 0;
-          const tryNextPath = () => {
-            if (pathIndex < paths.length) {
-              img.src = paths[pathIndex];
-              pathIndex++;
-            } else {
-              console.error("Could not load track image from any path. Check file location.");
-            }
-          };
-          
-          img.onerror = tryNextPath;
-          tryNextPath();
-        };
-      }
-    } catch (error) {
-      console.error("Error setting up canvas:", error);
-    }
   }, []);
 
   useEffect(() => {
@@ -181,7 +139,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     let animationFrameId: number;
 
     const updatePosition = () => {
-      if (isFocused || isGameActive) {
+      if ((isFocused || isGameActive) && isGameActive) {
         setPosition((prev) => {
           let newPos = { ...prev };
 
@@ -195,46 +153,14 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           const radians = (newPos.rotation * Math.PI) / 180;
           let currentSpeed = speed;
 
-          // Säkrare hantering av canvas
-          try {
-            const canvas = canvasRef.current;
-            if (canvas) {
-              const ctx = canvas.getContext('2d');
-              if (ctx && containerRef.current) {
-                const container = containerRef.current;
-                const scaleX = canvas.width / container.clientWidth;
-                const scaleY = canvas.height / container.clientHeight;
-
-                const canvasX = Math.floor((newPos.x + 32) * scaleX);
-                const canvasY = Math.floor((newPos.y + 32) * scaleY);
-
-                try {
-                  const imageData = ctx.getImageData(canvasX, canvasY, 1, 1).data;
-                  const [r, g, b] = imageData;
-
-                  // Grass color check (tolerance around #2A922C)
-                  if (
-                    r >= 30 &&
-                    r <= 60 &&
-                    g >= 130 &&
-                    g <= 160 &&
-                    b >= 30 &&
-                    b <= 60
-                  ) {
-                    currentSpeed = speed * 0.5; // Slow down to 50% on grass
-                  }
-                } catch (e) {
-                  // Om getImageData misslyckas (t.ex. säkerhetsskäl), fortsätt utan färgkoll
-                  console.warn("Could not get pixel data:", e);
-                }
-              }
-            }
-          } catch (e) {
-            console.warn("Canvas error:", e);
+          // Simplified terrain detection - we'll use position instead of color detection
+          // This avoids issues with loading external images
+          
+          // Rough track boundaries - these are approximate values based on the track SVG
+          const isOnTrack = isPositionOnTrack(newPos.x, newPos.y);
+          if (!isOnTrack) {
+            currentSpeed = speed * 0.5; // Slow down to 50% on grass
           }
-
-          // Update live speed display before calculating movement
-          setCurrentDisplaySpeed(currentSpeed);
 
           let potentialX = newPos.x;
           let potentialY = newPos.y;
@@ -297,12 +223,41 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     };
   }, [speed, rotationSpeed, isFocused, boundaries, isGameActive, onPositionUpdate]);
 
+  // Helper function to determine if the kart is on the track based on position
+  const isPositionOnTrack = (x: number, y: number): boolean => {
+    // This is a simplified approach - ideally we would have actual track boundaries
+    // For now, we'll use an approximate elliptical track shape
+    
+    const centerX = 440; // Center of the track
+    const centerY = 250; 
+    const radiusX = 300; // Horizontal radius
+    const radiusY = 200; // Vertical radius
+    
+    // Calculate normalized distance from center
+    const normalizedX = (x - centerX) / radiusX;
+    const normalizedY = (y - centerY) / radiusY;
+    
+    // If point is inside the elliptical track (with some margin)
+    const distanceSquared = normalizedX * normalizedX + normalizedY * normalizedY;
+    
+    // On track if distance is between inner and outer track boundaries
+    return distanceSquared <= 1.2 && distanceSquared >= 0.7;
+  };
+
+  // Function to handle clicking on the container (for focus)
+  const handleContainerClick = () => {
+    if (containerRef.current) {
+      containerRef.current.focus();
+    }
+  };
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       style={{ outline: "none", height: "500px" }}
+      onClick={handleContainerClick}
     >
       {/* Race track as background */}
       <RaceTrack className="absolute top-0 left-0 w-full h-full pointer-events-none" />
@@ -313,8 +268,10 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         y={position.y}
         rotation={position.rotation}
       />
-      <div className="absolute bottom-2 left-2 text-sm text-gray-600">
-        {!isFocused &&
+      
+      {/* Focus notification */}
+      <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
+        {!isFocused && isGameActive &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>
