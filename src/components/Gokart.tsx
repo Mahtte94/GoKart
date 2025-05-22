@@ -28,17 +28,16 @@ interface GokartProps {
   onSpeedUpdate?: (speed: number, maxSpeed: number) => void;
 }
 
-// Define the ref type interface
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
   getTerrainInfo: () => boolean;
 }
 
-// Align this with FINISH_LINE in GameController.tsx
+
 const START_POSITION: Position = {
-  x: 440, // Match with FINISH_LINE.x in GameController
-  y: 90,  // Slightly below the finish line
-  rotation: 270, // Pointing downward
+  x: 440,
+  y: 90,
+  rotation: 270,
 };
 
 // Use forwardRef to expose methods to parent component
@@ -50,24 +49,22 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
   // State variables
   const [position, setPosition] = useState<Position>(START_POSITION);
-  const [baseSpeed] = useState<number>(8); // Base speed when on track
+  const [baseSpeed] = useState<number>(4);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   const [rotation, setRotation] = useState<number>(START_POSITION.rotation);
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(baseSpeed);
-  const [acceleration] = useState<number>(0.3); // How quickly the kart speeds up
-  const [deceleration] = useState<number>(0.15); // How quickly the kart slows down
-  const [rotationSpeed] = useState<number>(5); // Base rotation speed
+  const [acceleration] = useState<number>(0.15);
+  const [deceleration] = useState<number>(0.08);
+  const [rotationSpeed] = useState<number>(3);
   const [isFocused, setIsFocused] = useState<boolean>(false);
   
-  // Visual effects for terrain
   const [shakeFactor, setShakeFactor] = useState<number>(0);
   
-  // Constants for physics
-  const GRASS_SPEED_FACTOR = 0.4; // 40% speed on grass (more noticeable)
-  const GRASS_ROTATION_FACTOR = 0.7; // 70% rotation speed on grass
-  const GRASS_DRAG = 1.2; // Higher drag on grass
-  const MAX_SHAKE = 2; // Maximum shake pixels when on grass
+  const GRASS_SPEED_FACTOR = 0.3;
+  const GRASS_ROTATION_FACTOR = 0.7;
+  const GRASS_DRAG = 1.2;
+  const MAX_SHAKE = 2;
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
@@ -76,10 +73,8 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     maxY: 600 - rectangleSize.height,
   });
 
-  // Debug mode to visualize the track detection
   const [showTrackDebug, setShowTrackDebug] = useState<boolean>(false);
 
-  // Toggle debug mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 't' || e.key === 'T') {
@@ -93,7 +88,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     };
   }, []);
 
-  // Function to capture the current state of the track as an image for color sampling
   const captureTrackImage = useCallback(() => {
     const canvas = backgroundCanvasRef.current;
     const container = containerRef.current;
@@ -103,27 +97,22 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas dimensions
     canvas.width = 896;
     canvas.height = 600;
 
-    // Find the SVG element in the container
     const svgElement = container.querySelector('svg');
     if (!svgElement) {
-      // If SVG not found, try again after a short delay
       setTimeout(captureTrackImage, 200);
       return;
     }
 
     try {
-      // Create a new image from the SVG
       const svgData = new XMLSerializer().serializeToString(svgElement);
       const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const svgUrl = URL.createObjectURL(svgBlob);
 
       const img = new Image();
       img.onload = () => {
-        // Draw the SVG to the canvas
         ctx.drawImage(img, 0, 0, 896, 600);
         URL.revokeObjectURL(svgUrl);
         console.log('Track image captured successfully for color detection');
@@ -138,23 +127,16 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     }
   }, []);
 
-  // Capture the track image when component mounts and game becomes active
   useEffect(() => {
     if (isGameActive) {
-      // Small delay to ensure SVG is fully rendered
       setTimeout(captureTrackImage, 100);
     }
   }, [isGameActive, captureTrackImage]);
 
-  // Function to check if a color is grass (green)
   const isGrassColor = (r: number, g: number, b: number): boolean => {
-    // Green grass color from your SVG: #2A922C (42, 146, 44)
-    // We'll check if the color is "greenish"
     
-    // Primary check: Green component should be significantly higher than red and blue
     const isGreenDominant = g > r * 1.3 && g > b * 1.3;
     
-    // Secondary check: Is it close to the actual grass color?
     const grassR = 42, grassG = 146, grassB = 44;
     const colorDistance = Math.sqrt(
       Math.pow(r - grassR, 2) + 
@@ -162,11 +144,9 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       Math.pow(b - grassB, 2)
     );
     
-    // Accept if it's greenish OR close to the grass color
     return isGreenDominant || colorDistance < 50;
   };
 
-  // Function to sample color at a specific point
   const sampleColorAtPoint = (x: number, y: number): { r: number, g: number, b: number } | null => {
     const canvas = backgroundCanvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -174,7 +154,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     if (!ctx || !canvas) return null;
     
     try {
-      // Make sure coordinates are within canvas bounds
       if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
         const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
         return { r: pixel[0], g: pixel[1], b: pixel[2] };
@@ -186,28 +165,22 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     return null;
   };
 
-  // Improved terrain detection using direct color sampling
   const isPositionOnTrack = (x: number, y: number): boolean => {
-    // Get the center point of the kart
     const kartCenterX = Math.floor(x + rectangleSize.width / 2);
     const kartCenterY = Math.floor(y + rectangleSize.height / 2);
     
-    // Sample multiple points around the kart for better accuracy
     const samplePoints = [
-      // Center point (most important)
       { x: kartCenterX, y: kartCenterY, weight: 3 },
+
+      { x: kartCenterX, y: kartCenterY - 12, weight: 2 },
+      { x: kartCenterX + 12, y: kartCenterY, weight: 2 },
+      { x: kartCenterX, y: kartCenterY + 12, weight: 2 },
+      { x: kartCenterX - 12, y: kartCenterY, weight: 2 }, 
       
-      // Cardinal directions
-      { x: kartCenterX, y: kartCenterY - 12, weight: 2 },  // North
-      { x: kartCenterX + 12, y: kartCenterY, weight: 2 },  // East
-      { x: kartCenterX, y: kartCenterY + 12, weight: 2 },  // South
-      { x: kartCenterX - 12, y: kartCenterY, weight: 2 },  // West
-      
-      // Diagonal directions
-      { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 },   // Northeast
-      { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },   // Southeast
-      { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },   // Southwest
-      { x: kartCenterX - 8, y: kartCenterY - 8, weight: 1 }    // Northwest
+      { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 }, 
+      { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },  
+      { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },   
+      { x: kartCenterX - 8, y: kartCenterY - 8, weight: 1 }    
     ];
     
     let totalWeight = 0;
@@ -219,21 +192,17 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       if (color) {
         totalWeight += point.weight;
         
-        // If the color is NOT grass, then it's track
         if (!isGrassColor(color.r, color.g, color.b)) {
           trackWeight += point.weight;
         }
       }
     }
     
-    // Calculate percentage of points that are on track
     const trackPercentage = totalWeight > 0 ? (trackWeight / totalWeight) * 100 : 50;
     
-    // Consider on track if more than 60% of weighted points are track
     return trackPercentage >= 60;
   };
 
-  // Render debug view
   const renderTrackDebug = () => {
     if (!showTrackDebug) return null;
     
@@ -259,7 +228,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
                 debugCanvas.height = 600;
                 debugCtx.drawImage(canvas, 0, 0);
                 
-                // Draw kart position indicator
                 const kartCenterX = position.x + 32;
                 const kartCenterY = position.y + 32;
                 debugCtx.strokeStyle = isOnTrack ? '#00ff00' : '#ff0000';
@@ -268,7 +236,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
                 debugCtx.arc(kartCenterX, kartCenterY, 20, 0, 2 * Math.PI);
                 debugCtx.stroke();
                 
-                // Draw sample points
                 const samplePoints = [
                   { x: kartCenterX, y: kartCenterY },
                   { x: kartCenterX, y: kartCenterY - 12 },
@@ -301,7 +268,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     );
   };
 
-  // Reset position when game state changes
   useEffect(() => {
     if (isGameActive) {
       setPosition(START_POSITION);
@@ -317,7 +283,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     ArrowRight: false,
   });
 
-  // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     handleControlPress: (key: string, isPressed: boolean) => {
       if (key in keyState.current) {
@@ -352,7 +317,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       if (document.activeElement === containerRef.current) {
         setIsFocused(true);
       } else {
-        // Also check if any parent element is focused
         let element = containerRef.current?.parentElement;
         let parentHasFocus = false;
 
@@ -381,10 +345,8 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     };
   }, []);
 
-  // Set shake effect when off-track
   useEffect(() => {
     if (!isOnTrack && currentSpeed > 2) {
-      // Add random shake when on grass and moving
       const shake = () => {
         setShakeFactor(Math.random() * MAX_SHAKE * (currentSpeed / baseSpeed));
       };
@@ -406,7 +368,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         setRotation((prevRotation) => {
           let newRotation = prevRotation;
           
-          // Apply rotation based on terrain
           const effectiveRotationSpeed = isOnTrack 
             ? rotationSpeed 
             : rotationSpeed * GRASS_ROTATION_FACTOR;
@@ -424,36 +385,29 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         setCurrentSpeed((prevSpeed) => {
           let newSpeed = prevSpeed;
           
-          // Determine speed factors based on terrain
           const terrainSpeedFactor = isOnTrack ? 1 : GRASS_SPEED_FACTOR;
           const terrainDragFactor = isOnTrack ? 1 : GRASS_DRAG;
           
-          // Set max speed based on terrain
           setMaxSpeed(baseSpeed * terrainSpeedFactor);
           
-          // Apply acceleration/deceleration
           if (keyState.current.ArrowUp) {
             newSpeed += acceleration * terrainSpeedFactor;
           } else if (keyState.current.ArrowDown) {
             newSpeed -= acceleration * terrainSpeedFactor;
           } else {
-            // Natural deceleration when no keys are pressed
             if (newSpeed > 0) {
               newSpeed -= deceleration * terrainDragFactor;
             } else if (newSpeed < 0) {
               newSpeed += deceleration * terrainDragFactor;
             }
             
-            // Clamp to zero if very small
             if (Math.abs(newSpeed) < 0.1) {
               newSpeed = 0;
             }
           }
           
-          // Clamp to max speed in either direction
           newSpeed = Math.min(maxSpeed, Math.max(-maxSpeed * 0.6, newSpeed));
           
-          // Report speed to parent component
           if (onSpeedUpdate) {
             onSpeedUpdate(newSpeed, maxSpeed);
           }
@@ -462,26 +416,20 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         });
         
         setPosition((prev) => {
-          // Convert rotation to radians
           const radians = (rotation * Math.PI) / 180;
           
-          // Calculate position change based on speed and rotation
           const deltaX = Math.sin(radians) * currentSpeed;
           const deltaY = -Math.cos(radians) * currentSpeed;
           
-          // Apply movement
           let newX = prev.x + deltaX + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           let newY = prev.y + deltaY + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           
-          // Check boundaries
           newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
           newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
           
-          // Check if new position is on track using color detection
           const onTrack = isPositionOnTrack(newX, newY);
           setIsOnTrack(onTrack);
           
-          // Provide position update to parent component
           if (onPositionUpdate) {
             onPositionUpdate({ x: newX, y: newY });
           }
@@ -525,7 +473,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     };
   }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor, onSpeedUpdate]);
 
-  // Visual effect elements
   const renderTerrainEffects = () => {
     if (!isOnTrack && currentSpeed > 1) {
       return (
@@ -558,7 +505,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     return null;
   };
 
-  // Function to handle clicking on the container (for focus)
   const handleContainerClick = () => {
     if (containerRef.current) {
       containerRef.current.focus();
@@ -631,7 +577,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   );
 });
 
-// Add display name for better debugging
 Gokart.displayName = 'Gokart';
 
 export default Gokart;

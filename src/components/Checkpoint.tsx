@@ -19,51 +19,51 @@ const Checkpoint: React.FC<CheckpointProps> = ({ position, isPassed, index }) =>
         pointerEvents: 'none' // So it doesn't interfere with game controls
       }}
     >
-      {/* Outer pulsing circle */}
+      {/* Outer pulsing circle - made smaller */}
       <div 
         className={`absolute ${isPassed ? 'bg-green-500' : 'bg-yellow-500'} rounded-full animate-pulse`}
         style={{
-          opacity: 0.6,
-          width: '80px',
-          height: '80px',
-          left: '-40px',
-          top: '-40px',
+          opacity: 0.4, // Reduced opacity to make it less prominent
+          width: '50px', // Reduced from 80px
+          height: '50px', // Reduced from 80px
+          left: '-25px', // Adjusted centering
+          top: '-25px', // Adjusted centering
           boxShadow: isPassed 
-            ? '0 0 30px 10px rgba(16, 185, 129, 0.7)' 
-            : '0 0 30px 10px rgba(245, 158, 11, 0.7)',
+            ? '0 0 20px 5px rgba(16, 185, 129, 0.5)' // Reduced glow
+            : '0 0 20px 5px rgba(245, 158, 11, 0.5)', // Reduced glow
           animation: 'pulse 1.5s infinite'
         }}
       />
       
-      {/* Inner circle */}
+      {/* Inner circle - made smaller */}
       <div 
-        className={`absolute ${isPassed ? 'bg-green-600' : 'bg-yellow-600'} rounded-full flex items-center justify-center border-4 ${isPassed ? 'border-green-800' : 'border-yellow-800'}`}
+        className={`absolute ${isPassed ? 'bg-green-600' : 'bg-yellow-600'} rounded-full flex items-center justify-center border-2 ${isPassed ? 'border-green-800' : 'border-yellow-800'}`}
         style={{
-          width: '50px',
-          height: '50px',
-          left: '-25px',
-          top: '-25px',
+          width: '32px', // Reduced from 50px
+          height: '32px', // Reduced from 50px
+          left: '-16px', // Adjusted centering
+          top: '-16px', // Adjusted centering
         }}
       >
         <Circle 
           className="text-white" 
-          size={30} 
+          size={20} // Reduced from 30
           fill={isPassed ? "#10B981" : "#D97706"} 
-          strokeWidth={3}
+          strokeWidth={2} // Reduced from 3
         />
       </div>
       
-      {/* Text label outside of circles */}
+      {/* Text label outside of circles - adjusted position */}
       <div 
         className="absolute whitespace-nowrap font-bold"
         style={{
-          top: '-70px',
-          left: '-40px',
-          width: '80px',
+          top: '-45px', // Adjusted for smaller circles
+          left: '-25px', // Adjusted for smaller circles
+          width: '50px', // Adjusted width
           textAlign: 'center'
         }}
       >
-        <span className={`${isPassed ? 'bg-green-800' : 'bg-yellow-800'} text-white px-3 py-1 rounded-full text-sm`}>
+        <span className={`${isPassed ? 'bg-green-800' : 'bg-yellow-800'} text-white px-2 py-1 rounded-full text-xs`}>
           CP {index}
         </span>
       </div>
