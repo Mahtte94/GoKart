@@ -21,13 +21,13 @@ const CHECKPOINTS = [
   {
     id: 1,
     x: 204,
-    y: 380,
+    y: 420,
     radius: 80,
   },
   {
     id: 2,
-    x: 691, 
-    y: 400,
+    x: 580, 
+    y: 474,
     radius: 80,
   }
 ];
