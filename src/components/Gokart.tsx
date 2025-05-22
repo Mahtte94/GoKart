@@ -1,5 +1,4 @@
-// src/components/Gokart.tsx
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from "react";
 import GoKartSprite from "./GoKartSprite";
 import RaceTrack from "../assets/RaceTrack";
 
@@ -35,95 +34,18 @@ interface GokartRefHandle {
   getTerrainInfo: () => boolean;
 }
 
-// Track segment structure with proper types for all properties
-interface TrackSegment {
-  type: 'rect' | 'arc' | 'ellipse';
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  centerX?: number;
-  centerY?: number;
-  radius?: number;
-  radiusX?: number;
-  radiusY?: number;
-  startAngle?: number;
-  endAngle?: number;
-  isOuter: boolean;
-}
-
 // Align this with FINISH_LINE in GameController.tsx
 const START_POSITION: Position = {
   x: 440, // Match with FINISH_LINE.x in GameController
-  y: 50,  // Slightly below the finish line
+  y: 90,  // Slightly below the finish line
   rotation: 270, // Pointing downward
 };
-
-// Define track segments for detection with proper type definitions
-const TRACK_SEGMENTS: TrackSegment[] = [
-  // Outer track boundary
-  {
-    type: 'rect',
-    x: 250, 
-    y: 0,
-    width: 400,
-    height: 100,
-    isOuter: true
-  },
-  {
-    type: 'rect',
-    x: 250,
-    y: 450,
-    width: 400,
-    height: 100,
-    isOuter: true
-  },
-  {
-    type: 'arc',
-    centerX: 250,
-    centerY: 250,
-    radius: 150,
-    startAngle: Math.PI/2,
-    endAngle: 3*Math.PI/2,
-    isOuter: true
-  },
-  {
-    type: 'arc',
-    centerX: 650,
-    centerY: 250,
-    radius: 150,
-    startAngle: -Math.PI/2,
-    endAngle: Math.PI/2,
-    isOuter: true
-  },
-  // Inner track boundary (hole)
-  {
-    type: 'ellipse',
-    centerX: 450,
-    centerY: 300,
-    radiusX: 150,
-    radiusY: 150,
-    isOuter: false
-  },
-  // Middle crossing (vertical path through center)
-  {
-    type: 'rect',
-    x: 425, 
-    y: 150,
-    width: 50,
-    height: 300,
-    isOuter: true
-  }
-];
-
-// Track width constant
-const TRACK_WIDTH = 100;
 
 // Use forwardRef to expose methods to parent component
 const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const { isGameActive = false, onPositionUpdate, onSpeedUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
   // State variables
@@ -146,10 +68,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const GRASS_ROTATION_FACTOR = 0.7; // 70% rotation speed on grass
   const GRASS_DRAG = 1.2; // Higher drag on grass
   const MAX_SHAKE = 2; // Maximum shake pixels when on grass
-
-  // Track properties - this will be used for the canvas drawing
-  const TRACK_COLOR = '#676464'; // Gray track color
-  const GRASS_COLOR = '#2A922C'; // Green grass color
 
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
@@ -174,141 +92,214 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
-  
-  // Render debug view of the track map
+
+  // Function to capture the current state of the track as an image for color sampling
+  const captureTrackImage = useCallback(() => {
+    const canvas = backgroundCanvasRef.current;
+    const container = containerRef.current;
+    
+    if (!canvas || !container) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas dimensions
+    canvas.width = 896;
+    canvas.height = 600;
+
+    // Find the SVG element in the container
+    const svgElement = container.querySelector('svg');
+    if (!svgElement) {
+      // If SVG not found, try again after a short delay
+      setTimeout(captureTrackImage, 200);
+      return;
+    }
+
+    try {
+      // Create a new image from the SVG
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        // Draw the SVG to the canvas
+        ctx.drawImage(img, 0, 0, 896, 600);
+        URL.revokeObjectURL(svgUrl);
+        console.log('Track image captured successfully for color detection');
+      };
+      img.onerror = () => {
+        console.warn('Failed to load SVG image for color detection');
+        URL.revokeObjectURL(svgUrl);
+      };
+      img.src = svgUrl;
+    } catch (error) {
+      console.warn('Error capturing track image:', error);
+    }
+  }, []);
+
+  // Capture the track image when component mounts and game becomes active
+  useEffect(() => {
+    if (isGameActive) {
+      // Small delay to ensure SVG is fully rendered
+      setTimeout(captureTrackImage, 100);
+    }
+  }, [isGameActive, captureTrackImage]);
+
+  // Function to check if a color is grass (green)
+  const isGrassColor = (r: number, g: number, b: number): boolean => {
+    // Green grass color from your SVG: #2A922C (42, 146, 44)
+    // We'll check if the color is "greenish"
+    
+    // Primary check: Green component should be significantly higher than red and blue
+    const isGreenDominant = g > r * 1.3 && g > b * 1.3;
+    
+    // Secondary check: Is it close to the actual grass color?
+    const grassR = 42, grassG = 146, grassB = 44;
+    const colorDistance = Math.sqrt(
+      Math.pow(r - grassR, 2) + 
+      Math.pow(g - grassG, 2) + 
+      Math.pow(b - grassB, 2)
+    );
+    
+    // Accept if it's greenish OR close to the grass color
+    return isGreenDominant || colorDistance < 50;
+  };
+
+  // Function to sample color at a specific point
+  const sampleColorAtPoint = (x: number, y: number): { r: number, g: number, b: number } | null => {
+    const canvas = backgroundCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    
+    if (!ctx || !canvas) return null;
+    
+    try {
+      // Make sure coordinates are within canvas bounds
+      if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+        const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+        return { r: pixel[0], g: pixel[1], b: pixel[2] };
+      }
+    } catch (error) {
+      console.warn("Error sampling color:", error);
+    }
+    
+    return null;
+  };
+
+  // Improved terrain detection using direct color sampling
+  const isPositionOnTrack = (x: number, y: number): boolean => {
+    // Get the center point of the kart
+    const kartCenterX = Math.floor(x + rectangleSize.width / 2);
+    const kartCenterY = Math.floor(y + rectangleSize.height / 2);
+    
+    // Sample multiple points around the kart for better accuracy
+    const samplePoints = [
+      // Center point (most important)
+      { x: kartCenterX, y: kartCenterY, weight: 3 },
+      
+      // Cardinal directions
+      { x: kartCenterX, y: kartCenterY - 12, weight: 2 },  // North
+      { x: kartCenterX + 12, y: kartCenterY, weight: 2 },  // East
+      { x: kartCenterX, y: kartCenterY + 12, weight: 2 },  // South
+      { x: kartCenterX - 12, y: kartCenterY, weight: 2 },  // West
+      
+      // Diagonal directions
+      { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 },   // Northeast
+      { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },   // Southeast
+      { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },   // Southwest
+      { x: kartCenterX - 8, y: kartCenterY - 8, weight: 1 }    // Northwest
+    ];
+    
+    let totalWeight = 0;
+    let trackWeight = 0;
+    
+    for (const point of samplePoints) {
+      const color = sampleColorAtPoint(point.x, point.y);
+      
+      if (color) {
+        totalWeight += point.weight;
+        
+        // If the color is NOT grass, then it's track
+        if (!isGrassColor(color.r, color.g, color.b)) {
+          trackWeight += point.weight;
+        }
+      }
+    }
+    
+    // Calculate percentage of points that are on track
+    const trackPercentage = totalWeight > 0 ? (trackWeight / totalWeight) * 100 : 50;
+    
+    // Consider on track if more than 60% of weighted points are track
+    return trackPercentage >= 60;
+  };
+
+  // Render debug view
   const renderTrackDebug = () => {
     if (!showTrackDebug) return null;
     
-    const canvas = canvasRef.current;
+    const canvas = backgroundCanvasRef.current;
     if (!canvas) return null;
     
     return (
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 opacity-50">
-        <img 
-          src={canvas.toDataURL('image/png')} 
-          alt="Track Detection Map" 
-          className="w-full h-full"
+      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 opacity-70">
+        <canvas 
+          width="896"
+          height="600"
+          style={{ 
+            width: '100%', 
+            height: '100%',
+            imageRendering: 'pixelated'
+          }}
+          ref={(debugCanvas) => {
+            if (debugCanvas && canvas) {
+              const debugCtx = debugCanvas.getContext('2d');
+              const ctx = canvas.getContext('2d');
+              if (debugCtx && ctx) {
+                debugCanvas.width = 896;
+                debugCanvas.height = 600;
+                debugCtx.drawImage(canvas, 0, 0);
+                
+                // Draw kart position indicator
+                const kartCenterX = position.x + 32;
+                const kartCenterY = position.y + 32;
+                debugCtx.strokeStyle = isOnTrack ? '#00ff00' : '#ff0000';
+                debugCtx.lineWidth = 3;
+                debugCtx.beginPath();
+                debugCtx.arc(kartCenterX, kartCenterY, 20, 0, 2 * Math.PI);
+                debugCtx.stroke();
+                
+                // Draw sample points
+                const samplePoints = [
+                  { x: kartCenterX, y: kartCenterY },
+                  { x: kartCenterX, y: kartCenterY - 12 },
+                  { x: kartCenterX + 12, y: kartCenterY },
+                  { x: kartCenterX, y: kartCenterY + 12 },
+                  { x: kartCenterX - 12, y: kartCenterY }
+                ];
+                
+                samplePoints.forEach(point => {
+                  const color = sampleColorAtPoint(point.x, point.y);
+                  if (color) {
+                    const isGrass = isGrassColor(color.r, color.g, color.b);
+                    debugCtx.fillStyle = isGrass ? '#ff0000' : '#00ff00';
+                    debugCtx.beginPath();
+                    debugCtx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                    debugCtx.fill();
+                  }
+                });
+              }
+            }
+          }}
         />
         <div className="absolute top-0 left-0 bg-black bg-opacity-70 text-white p-2 text-sm">
-          Track Detection Debug Mode (Press T to toggle)
+          Color-Based Track Detection Debug (Press T to toggle)
           <div>Kart position: x={Math.round(position.x + 32)}, y={Math.round(position.y + 32)}</div>
-          <div>Terrain: {isOnTrack ? 'TRACK' : 'GRASS'}</div>
+          <div>Terrain: <span className={isOnTrack ? 'text-green-400' : 'text-red-400'}>{isOnTrack ? 'TRACK' : 'GRASS'}</span></div>
+          <div className="text-xs mt-1">Green dots = Track, Red dots = Grass</div>
         </div>
       </div>
     );
   };
-
-  // Use useEffect to draw the track onto the canvas for terrain detection
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    
-    if (canvas && ctx) {
-      console.log("Drawing track map to hidden canvas for terrain detection");
-      
-      // Set canvas dimensions to match the track
-      canvas.width = 896;
-      canvas.height = 600;
-      
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Fill the canvas with grass color first
-      ctx.fillStyle = GRASS_COLOR;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw the track based on your screenshots
-      ctx.fillStyle = TRACK_COLOR;
-      
-      // Strategy: Draw the track outline first
-      ctx.beginPath();
-      
-      // Outer track boundary - starting from top center and going clockwise
-      ctx.moveTo(450, 0);       // Top center
-      ctx.lineTo(650, 0);       // Top right
-      ctx.lineTo(750, 50);      // Right curve start
-      ctx.quadraticCurveTo(830, 150, 830, 250);  // Right top curve
-      ctx.lineTo(830, 350);     // Right straight
-      ctx.quadraticCurveTo(830, 450, 750, 500);  // Right bottom curve
-      ctx.lineTo(650, 550);     // Bottom right
-      ctx.lineTo(250, 550);     // Bottom straight
-      ctx.lineTo(150, 500);     // Bottom left curve start
-      ctx.quadraticCurveTo(70, 450, 70, 350);    // Left bottom curve
-      ctx.lineTo(70, 250);      // Left straight
-      ctx.quadraticCurveTo(70, 150, 150, 50);    // Left top curve
-      ctx.lineTo(250, 0);       // Top left
-      ctx.closePath();
-      ctx.fill();
-      
-      // Now cut out the inner track to create the racing shape
-      ctx.globalCompositeOperation = 'destination-out';
-      
-      // Inner track boundary (the "hole" in the track)
-      ctx.beginPath();
-      
-      // Central oval - starting from top and going clockwise
-      ctx.moveTo(450, 150);     // Top center
-      ctx.lineTo(550, 150);     // Top right
-      ctx.quadraticCurveTo(650, 200, 650, 300);  // Right curve
-      ctx.quadraticCurveTo(650, 400, 550, 450);  // Bottom right curve
-      ctx.lineTo(350, 450);     // Bottom straight
-      ctx.quadraticCurveTo(250, 400, 250, 300);  // Bottom left curve
-      ctx.quadraticCurveTo(250, 200, 350, 150);  // Left top curve
-      ctx.closePath();
-      ctx.fill();
-      
-      // Reset composite operation
-      ctx.globalCompositeOperation = 'source-over';
-      
-      // Add middle crossing path - this appears to be visible track in your game
-      // From screenshot 3, it shows you can drive through the middle section
-      ctx.fillStyle = TRACK_COLOR;
-      ctx.beginPath();
-      ctx.rect(425, 150, 50, 300); // Vertical path connecting top and bottom
-      ctx.fill();
-      
-      // Add a thin black border around the track to help with edge detection
-      ctx.strokeStyle = '#444444';
-      ctx.lineWidth = 2;
-      
-      // Outer track boundary
-      ctx.beginPath();
-      ctx.moveTo(450, 0);
-      ctx.lineTo(650, 0);
-      ctx.lineTo(750, 50);
-      ctx.quadraticCurveTo(830, 150, 830, 250);
-      ctx.lineTo(830, 350);
-      ctx.quadraticCurveTo(830, 450, 750, 500);
-      ctx.lineTo(650, 550);
-      ctx.lineTo(250, 550);
-      ctx.lineTo(150, 500);
-      ctx.quadraticCurveTo(70, 450, 70, 350);
-      ctx.lineTo(70, 250);
-      ctx.quadraticCurveTo(70, 150, 150, 50);
-      ctx.lineTo(250, 0);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // Inner track boundary
-      ctx.beginPath();
-      ctx.moveTo(450, 150);
-      ctx.lineTo(550, 150);
-      ctx.quadraticCurveTo(650, 200, 650, 300);
-      ctx.quadraticCurveTo(650, 400, 550, 450);
-      ctx.lineTo(350, 450);
-      ctx.quadraticCurveTo(250, 400, 250, 300);
-      ctx.quadraticCurveTo(250, 200, 350, 150);
-      ctx.closePath();
-      ctx.stroke();
-      
-      // Middle vertical path
-      ctx.beginPath();
-      ctx.rect(425, 150, 50, 300);
-      ctx.stroke();
-      
-      console.log("Exact race track map drawn to canvas for terrain detection");
-    }
-  }, []);
 
   // Reset position when game state changes
   useEffect(() => {
@@ -486,7 +477,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
           newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
           
-          // Check if new position is on track using the canvas pixel data
+          // Check if new position is on track using color detection
           const onTrack = isPositionOnTrack(newX, newY);
           setIsOnTrack(onTrack);
           
@@ -533,201 +524,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       cancelAnimationFrame(animationFrameId);
     };
   }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor, onSpeedUpdate]);
-
-  // Helper function to sample a point on the track canvas and determine if it's on the track
-  const sampleTrackPoint = (x: number, y: number): boolean => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    
-    if (!ctx || !canvas) return true; // Default to track if we can't check
-    
-    try {
-      // Make sure coordinates are within canvas bounds
-      if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
-        // Get the pixel color at the specified point
-        const pixel = ctx.getImageData(x, y, 1, 1).data;
-        const [r, g, b] = pixel;
-        
-        // Based on screenshots, the track is gray (#666666) and grass is green (#2A922C)
-        // Simple but accurate color check for green (grass)
-        if (g > r * 1.5 && g > b * 1.5) {
-          return false; // On grass - green is much higher than red and blue
-        }
-        
-        // Simple check for gray (track)
-        // In gray, R, G, and B values are all similar
-        const maxDiff = Math.max(Math.abs(r - g), Math.abs(r - b), Math.abs(g - b));
-        if (maxDiff < 50) {
-          return true; // On track - colors are similar
-        }
-        
-        // More precise color distance calculation as fallback
-        const trackR = 102; // #666666
-        const trackG = 102;
-        const trackB = 102;
-        
-        const grassR = 42;  // #2A922C
-        const grassG = 146;
-        const grassB = 44;
-        
-        const trackDistance = Math.sqrt(
-          Math.pow(r - trackR, 2) + 
-          Math.pow(g - trackG, 2) + 
-          Math.pow(b - trackB, 2)
-        );
-        
-        const grassDistance = Math.sqrt(
-          Math.pow(r - grassR, 2) + 
-          Math.pow(g - grassG, 2) + 
-          Math.pow(b - grassB, 2)
-        );
-        
-        return trackDistance < grassDistance;
-      }
-    } catch (error) {
-      console.warn("Error sampling track point:", error);
-    }
-    
-    return fallbackTrackDetection(x, y); // Use fallback if sampling fails
-  };
-
-  // Improved function to check if a position is on the track using multiple sample points
-  const isPositionOnTrack = (x: number, y: number): boolean => {
-    // Get the center point of the kart
-    const kartCenterX = Math.floor(x + rectangleSize.width / 2);
-    const kartCenterY = Math.floor(y + rectangleSize.height / 2);
-    
-    // Create a more detailed grid of 13 sample points for precise detection
-    // This grid forms a diamond pattern with more points at the edges
-    const samplePoints = [
-      // Center point (most important)
-      { x: kartCenterX, y: kartCenterY, weight: 3 },
-      
-      // Inner diamond (4 points)
-      { x: kartCenterX, y: kartCenterY - 12, weight: 2 },  // North
-      { x: kartCenterX + 12, y: kartCenterY, weight: 2 },  // East
-      { x: kartCenterX, y: kartCenterY + 12, weight: 2 },  // South
-      { x: kartCenterX - 12, y: kartCenterY, weight: 2 },  // West
-      
-      // Outer diamond (8 points)
-      { x: kartCenterX, y: kartCenterY - 25, weight: 1 },  // Far North
-      { x: kartCenterX + 18, y: kartCenterY - 18, weight: 1 }, // Northeast
-      { x: kartCenterX + 25, y: kartCenterY, weight: 1 },  // Far East
-      { x: kartCenterX + 18, y: kartCenterY + 18, weight: 1 }, // Southeast
-      { x: kartCenterX, y: kartCenterY + 25, weight: 1 },  // Far South
-      { x: kartCenterX - 18, y: kartCenterY + 18, weight: 1 }, // Southwest
-      { x: kartCenterX - 25, y: kartCenterY, weight: 1 },  // Far West
-      { x: kartCenterX - 18, y: kartCenterY - 18, weight: 1 }  // Northwest
-    ];
-    
-    // Use a weighted voting system
-    let totalWeight = 0;
-    let trackWeight = 0;
-    
-    for (const point of samplePoints) {
-      const isOnTrack = sampleTrackPoint(point.x, point.y);
-      totalWeight += point.weight;
-      if (isOnTrack) {
-        trackWeight += point.weight;
-      }
-    }
-    
-    // Calculate percentage (0-100) of points on track
-    const trackPercentage = (trackWeight / totalWeight) * 100;
-    
-    // Consider the kart on track if more than 60% of the weighted points are on track
-    // This threshold can be adjusted as needed
-    return trackPercentage >= 60;
-  };
-
-  // Fixed fallback track detection using track segments rather than the undefined curves
-  const fallbackTrackDetection = (x: number, y: number): boolean => {
-    // Get the center of the kart
-    const kartCenterX = x + rectangleSize.width / 2;
-    const kartCenterY = y + rectangleSize.height / 2;
-    
-    // Check against predefined track segments
-    let insideOuter = false;
-    let insideInner = false;
-    
-    for (const segment of TRACK_SEGMENTS) {
-      if (segment.type === 'rect') {
-        // Check if point is inside a rectangular segment
-        if (segment.x !== undefined && segment.y !== undefined && 
-            segment.width !== undefined && segment.height !== undefined) {
-          const isInside = (
-            kartCenterX >= segment.x && 
-            kartCenterX <= segment.x + segment.width && 
-            kartCenterY >= segment.y && 
-            kartCenterY <= segment.y + segment.height
-          );
-          
-          if (isInside) {
-            if (segment.isOuter) {
-              insideOuter = true;
-            } else {
-              insideInner = true;
-            }
-          }
-        }
-      } 
-      else if (segment.type === 'arc') {
-        // Check if point is inside an arc segment
-        if (segment.centerX !== undefined && segment.centerY !== undefined && 
-            segment.radius !== undefined && segment.startAngle !== undefined && 
-            segment.endAngle !== undefined) {
-          const dx = kartCenterX - segment.centerX;
-          const dy = kartCenterY - segment.centerY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          // Check if distance is within track width of the arc radius
-          const isWithinTrackWidth = (
-            distance <= segment.radius && 
-            distance >= segment.radius - TRACK_WIDTH
-          );
-          
-          // Check if angle is within arc bounds
-          const angle = Math.atan2(dy, dx);
-          const normalizedAngle = (angle < 0) ? angle + 2 * Math.PI : angle;
-          let isWithinAngles = false;
-          
-          if (segment.startAngle <= segment.endAngle) {
-            isWithinAngles = normalizedAngle >= segment.startAngle && normalizedAngle <= segment.endAngle;
-          } else {
-            isWithinAngles = normalizedAngle >= segment.startAngle || normalizedAngle <= segment.endAngle;
-          }
-          
-          if (isWithinTrackWidth && isWithinAngles) {
-            if (segment.isOuter) {
-              insideOuter = true;
-            } else {
-              insideInner = true;
-            }
-          }
-        }
-      }
-      else if (segment.type === 'ellipse') {
-        // Check if point is inside an elliptical segment
-        if (segment.centerX !== undefined && segment.centerY !== undefined && 
-            segment.radiusX !== undefined && segment.radiusY !== undefined) {
-          const normalizedX = (kartCenterX - segment.centerX) / segment.radiusX;
-          const normalizedY = (kartCenterY - segment.centerY) / segment.radiusY;
-          const distance = normalizedX * normalizedX + normalizedY * normalizedY;
-          
-          if (distance <= 1) {
-            if (segment.isOuter) {
-              insideOuter = true;
-            } else {
-              insideInner = true;
-            }
-          }
-        }
-      }
-    }
-    
-    // On track if inside outer boundary but not inside inner boundary
-    return insideOuter && !insideInner;
-  };
 
   // Visual effect elements
   const renderTerrainEffects = () => {
@@ -777,9 +573,9 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       style={{ outline: "none", width: "896px", height: "600px" }} 
       onClick={handleContainerClick}
     >
-      {/* Hidden canvas for pixel detection */}
+      {/* Hidden canvas for color sampling */}
       <canvas
-        ref={canvasRef}
+        ref={backgroundCanvasRef}
         width="896"
         height="600"
         style={{ display: "none" }}
@@ -828,7 +624,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       {/* Debug help text */}
       {isGameActive && (
         <div className="absolute bottom-2 right-2 text-xs bg-black bg-opacity-50 p-1 rounded text-white">
-          Press <kbd className="bg-gray-700 px-1 rounded">T</kbd> to toggle track detection debug
+          Press <kbd className="bg-gray-700 px-1 rounded">T</kbd> to toggle color detection debug
         </div>
       )}
     </div>
