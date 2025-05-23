@@ -1,3 +1,4 @@
+// src/assets/RaceTrack.tsx
 import React from "react";
 
 interface MySvgProps extends React.SVGProps<SVGSVGElement> {
@@ -20,7 +21,7 @@ function RaceTrack({
       viewBox="0 0 1440 1024"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      preserveAspectRatio="xMidYMid slice"
+      preserveAspectRatio="xMidYMid slice" // Use "slice" mode to fill the container
       {...props}
     >
       <g clipPath="url(#clip0_1_3)">
