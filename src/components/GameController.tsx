@@ -57,6 +57,7 @@ const GameController: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
+  const [isPortrait, setIsPortrait] = useState<boolean>(false);
 
   // Game progression
   const [currentLap, setCurrentLap] = useState<number>(0);
@@ -218,6 +219,38 @@ const GameController: React.FC = () => {
     return `${minsStr}:${secsStr}`;
   }, []);
 
+  useEffect(() => {
+    const checkMobileAndOrientation = () => {
+      const isMobile = window.innerWidth < 768;
+      setIsMobileView(isMobile);
+      const isPortraitMode = window.innerHeight > window.innerWidth;
+      setIsPortrait(isMobile && isPortraitMode);
+    };
+
+    checkMobileAndOrientation();
+    window.addEventListener("resize", checkMobileAndOrientation);
+    window.addEventListener("orientationchange", () =>
+      setTimeout(checkMobileAndOrientation, 200)
+    );
+
+    return () => {
+      window.removeEventListener("resize", checkMobileAndOrientation);
+      window.removeEventListener(
+        "orientationchange",
+        checkMobileAndOrientation
+      );
+    };
+  }, []);
+
+  const OrientationOverlay = () => (
+    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex flex-col justify-center items-center text-center px-6">
+      <h2 className="text-white text-2xl font-bold mb-4">Rotera enheten</h2>
+      <p className="text-white text-lg">
+        Vrid din mobil till liggande läge för att spela spelet.
+      </p>
+    </div>
+  );
+
   // Handle keyboard debug toggles
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -341,7 +374,7 @@ const GameController: React.FC = () => {
   );
 
   return (
-    <div ref={containerRef} className="game-wrapper" tabIndex={-1}>
+    <div ref={containerRef} className="game-wrapper relative" tabIndex={-1}>
       {/* Game header with timer */}
       <div className="game-header flex justify-between items-center p-2 md:p-3 bg-gray-800">
         <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white">
@@ -477,7 +510,7 @@ const GameController: React.FC = () => {
           </div>
 
           {/* Mobile controls - positioned absolutely within game area */}
-          {isMobileView && gameState === "playing" && (
+          {isMobileView && !isPortrait && gameState === "playing" && (
             <div className="mobile-controls-wrapper">
               <div className="mobile-controls-container">
                 <MobileControls onControlPress={handleControlPress} />
@@ -495,6 +528,7 @@ const GameController: React.FC = () => {
           to toggle checkpoint visibility.
         </p>
       </div>
+      {isPortrait && <OrientationOverlay />}
     </div>
   );
 };
