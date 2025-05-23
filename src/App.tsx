@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import './App.css'
-import GameController from './components/GameController'
+import { useState } from "react";
+import "./App.css";
+import GameController from "./components/GameController";
 
 function App() {
   return (
@@ -8,7 +8,7 @@ function App() {
       {/* Main game component */}
       <GameController />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
