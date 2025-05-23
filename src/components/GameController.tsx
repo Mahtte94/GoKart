@@ -209,56 +209,80 @@ const GameController: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Improved mobile scaling calculation
+  // IMPROVED mobile scaling calculation
   useEffect(() => {
     const checkMobileAndScale = () => {
       const isMobile = window.innerWidth < 768;
       setIsMobileView(isMobile);
       
       if (isMobile) {
-        // Get actual viewport dimensions
+        // Use dynamic viewport height when available
+        const viewportHeight = window.visualViewport?.height || window.innerHeight;
         const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
         
         // Game dimensions
         const gameWidth = 896;
         const gameHeight = 600;
         
-        // Calculate available space (accounting for UI elements)
+        // More accurate measurements for mobile UI elements
         const headerHeight = 50;
-        const controlsHeight = 100; // Fixed height for mobile controls
-        const safePadding = 10; // Reduced padding
         
-        const availableWidth = viewportWidth - (safePadding * 2);
-        const availableHeight = viewportHeight - headerHeight - controlsHeight - (safePadding * 2);
+        // Measure actual controls height or use reasonable estimates
+        const controlsElement = document.querySelector('.mobile-controls-container');
+        const actualControlsHeight = controlsElement?.getBoundingClientRect().height || 80;
+        
+        // Account for safe areas
+        const safeAreaBottom = parseInt(getComputedStyle(document.documentElement)
+          .getPropertyValue('--safe-area-inset-bottom')?.replace('px', '') || '0');
+        
+        // More conservative padding
+        const safePadding = 8;
+        const totalVerticalPadding = safePadding * 2;
+        const totalControlsSpace = actualControlsHeight + safeAreaBottom + 16; // 16px for padding
+        
+        // Calculate available space more accurately
+        const availableWidth = viewportWidth - totalVerticalPadding;
+        const availableHeight = viewportHeight - headerHeight - totalControlsSpace - totalVerticalPadding;
         
         // Calculate scale factors
         const scaleX = availableWidth / gameWidth;
         const scaleY = availableHeight / gameHeight;
         
-        // Use the smaller scale to ensure the game fits
+        // Use the smaller scale to ensure the game fits completely
         let scale = Math.min(scaleX, scaleY);
         
-        // Device-specific scale limits
-        let minScale = 0.35;
-        let maxScale = 0.75;
+        // Device-specific scale optimization
+        let minScale = 0.3;
+        let maxScale = 0.85;
         
-        // Adjust scale limits based on device size
-        if (viewportWidth <= 568) { // iPhone SE
+        // Adjust scale limits based on actual device characteristics
+        if (viewportWidth <= 568) { // iPhone SE landscape (568x320)
+          minScale = 0.28;
+          maxScale = 0.55;
+        } else if (viewportWidth <= 667) { // iPhone 6/7/8 landscape (667x375)
           minScale = 0.35;
           maxScale = 0.65;
-        } else if (viewportWidth <= 667) { // iPhone 6/7/8
+        } else if (viewportWidth <= 736) { // iPhone 6/7/8 Plus landscape (736x414)
           minScale = 0.4;
           maxScale = 0.7;
-        } else if (viewportWidth <= 844) { // iPhone 12 Pro
+        } else if (viewportWidth <= 844) { // iPhone 12/13 landscape (844x390)
           minScale = 0.45;
           maxScale = 0.75;
-        } else { // iPhone 14 Pro Max and larger
+        } else if (viewportWidth <= 926) { // iPhone 14 Pro Max landscape (926x428)
           minScale = 0.5;
           maxScale = 0.8;
         }
         
+        // Apply constraints
         scale = Math.max(minScale, Math.min(maxScale, scale));
+        
+        // Additional constraint: ensure minimum playable size
+        const minPlayableScale = Math.min(
+          (availableWidth * 0.85) / gameWidth,
+          (availableHeight * 0.85) / gameHeight
+        );
+        
+        scale = Math.max(scale, minPlayableScale);
         
         // Store the current scale
         setCurrentScale(scale);
@@ -266,23 +290,35 @@ const GameController: React.FC = () => {
         // Set CSS variable for scale
         document.documentElement.style.setProperty('--scale-factor', scale.toString());
         
-        // Update boundaries in the Gokart component
+        // Also set safe area for CSS
+        document.documentElement.style.setProperty('--safe-area-inset-bottom', `${safeAreaBottom}px`);
+        
+        // Update boundaries in the Gokart component with scaled values
         if (gokartRef.current) {
-          const kartSize = 64; // Go-kart sprite size
+          const kartSize = 64;
           
           gokartRef.current.updateBoundaries({
             minX: 0,
-            maxX: gameWidth - kartSize, // Keep original coordinates
+            maxX: gameWidth - kartSize,
             minY: 0,
-            maxY: gameHeight - kartSize, // Keep original coordinates
+            maxY: gameHeight - kartSize,
           });
         }
         
-        console.log(`Mobile scaling: ${scale.toFixed(3)} (Viewport: ${viewportWidth}x${viewportHeight}, Available: ${availableWidth}x${availableHeight})`);
+        // Debug logging
+        console.log(`Mobile scaling:`, {
+          scale: scale.toFixed(3),
+          viewport: `${viewportWidth}x${viewportHeight}`,
+          available: `${availableWidth}x${availableHeight}`,
+          controlsHeight: actualControlsHeight,
+          safeAreaBottom,
+        });
+        
       } else {
-        // Reset scale for desktop
+        // Desktop - reset everything
         setCurrentScale(1);
         document.documentElement.style.setProperty('--scale-factor', '1');
+        document.documentElement.style.setProperty('--safe-area-inset-bottom', '0px');
         
         // Reset boundaries for desktop
         if (gokartRef.current) {
@@ -299,16 +335,45 @@ const GameController: React.FC = () => {
     // Initial check
     checkMobileAndScale();
     
+    // Handle resize with debouncing
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(checkMobileAndScale, 100);
+    };
+    
+    // Handle orientation change with longer delay
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        checkMobileAndScale();
+        // Double-check after UI settles
+        setTimeout(checkMobileAndScale, 300);
+      }, 100);
+    };
+    
+    // Handle visual viewport changes (when mobile keyboard appears, etc.)
+    const handleVisualViewportChange = () => {
+      if (window.visualViewport) {
+        setTimeout(checkMobileAndScale, 50);
+      }
+    };
+    
     // Add event listeners
-    window.addEventListener('resize', checkMobileAndScale);
-    window.addEventListener('orientationchange', () => {
-      // Longer delay for orientation change to let the viewport settle
-      setTimeout(checkMobileAndScale, 300);
-    });
+    window.addEventListener('resize', debouncedResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleVisualViewportChange);
+    }
     
     return () => {
-      window.removeEventListener('resize', checkMobileAndScale);
-      window.removeEventListener('orientationchange', checkMobileAndScale);
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', debouncedResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleVisualViewportChange);
+      }
     };
   }, []);
 
