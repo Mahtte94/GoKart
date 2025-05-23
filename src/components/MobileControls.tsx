@@ -33,8 +33,8 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
     <button
       className={`bg-gray-700 bg-opacity-95 rounded-full flex items-center justify-center active:bg-gray-600 active:scale-95 touch-none select-none shadow-lg border-2 border-gray-600 active:border-gray-500 transition-all duration-75 ${className}`}
       style={{
-        width: 'clamp(48px, 12vw, 60px)',
-        height: 'clamp(48px, 12vw, 60px)',
+        width: '26px',  // Fixed size for consistency
+        height: '26px', // Fixed size for consistency
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
         userSelect: 'none',
@@ -82,39 +82,39 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
     <div 
       className="flex justify-between items-center w-full bg-gray-900 bg-opacity-90 rounded-2xl shadow-2xl backdrop-blur-sm border border-gray-700"
       style={{
-        maxWidth: 'min(400px, 90vw)',
-        padding: 'clamp(8px, 2vw, 12px)',
-        gap: 'clamp(8px, 2vw, 16px)',
+        maxWidth: '200px', // Slightly smaller max width
+        padding: '8px',   // Fixed padding
+        gap: '12px',       // Fixed gap
       }}
     >
       {/* Steering controls */}
       <div 
         className="flex"
-        style={{ gap: 'clamp(6px, 1.5vw, 12px)' }}
+        style={{ gap: '10px' }}
       >
         <ControlButton
           direction="ArrowLeft"
-          icon={<ArrowLeft className="text-white" style={{ width: 'clamp(20px, 5vw, 24px)', height: 'clamp(20px, 5vw, 24px)' }} />}
+          icon={<ArrowLeft className="text-white w-6 h-6" />}
         />
         <ControlButton
           direction="ArrowRight"
-          icon={<ArrowRight className="text-white" style={{ width: 'clamp(20px, 5vw, 24px)', height: 'clamp(20px, 5vw, 24px)' }} />}
+          icon={<ArrowRight className="text-white w-6 h-6" />}
         />
       </div>
       
       {/* Acceleration controls */}
       <div 
         className="flex"
-        style={{ gap: 'clamp(6px, 1.5vw, 12px)' }}
+        style={{ gap: '10px' }}
       >
         <ControlButton
           direction="ArrowDown"
-          icon={<ArrowDown className="text-white" style={{ width: 'clamp(20px, 5vw, 24px)', height: 'clamp(20px, 5vw, 24px)' }} />}
+          icon={<ArrowDown className="text-white w-6 h-6" />}
           className="bg-red-700 bg-opacity-95 active:bg-red-600 border-red-600 active:border-red-500"
         />
         <ControlButton
           direction="ArrowUp"
-          icon={<ArrowUp className="text-white" style={{ width: 'clamp(20px, 5vw, 24px)', height: 'clamp(20px, 5vw, 24px)' }} />}
+          icon={<ArrowUp className="text-white w-6 h-6" />}
           className="bg-green-700 bg-opacity-95 active:bg-green-600 border-green-600 active:border-green-500"
         />
       </div>
