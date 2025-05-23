@@ -31,6 +31,7 @@ interface GokartProps {
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
   getTerrainInfo: () => boolean;
+  updateBoundaries: (boundaries: Boundaries) => void;
 }
 
 
@@ -66,6 +67,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const GRASS_DRAG = 1.2;
   const MAX_SHAKE = 2;
 
+  // Updated boundaries state with proper initial values
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
     maxX: 896 - rectangleSize.width,
@@ -262,6 +264,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           Color-Based Track Detection Debug (Press T to toggle)
           <div>Kart position: x={Math.round(position.x + 32)}, y={Math.round(position.y + 32)}</div>
           <div>Terrain: <span className={isOnTrack ? 'text-green-400' : 'text-red-400'}>{isOnTrack ? 'TRACK' : 'GRASS'}</span></div>
+          <div>Boundaries: minX={boundaries.minX}, maxX={boundaries.maxX}, minY={boundaries.minY}, maxY={boundaries.maxY}</div>
           <div className="text-xs mt-1">Green dots = Track, Red dots = Grass</div>
         </div>
       </div>
@@ -289,28 +292,12 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         keyState.current[key as keyof KeyState] = isPressed;
       }
     },
-    getTerrainInfo: () => isOnTrack
+    getTerrainInfo: () => isOnTrack,
+    updateBoundaries: (newBoundaries: Boundaries) => {
+      setBoundaries(newBoundaries);
+      console.log('Boundaries updated:', newBoundaries);
+    }
   }));
-
-  useEffect(() => {
-    const updateBoundaries = () => {
-      if (containerRef.current) {
-        const containerRect = containerRef.current.getBoundingClientRect();
-        setBoundaries({
-          minX: 0,
-          maxX: containerRect.width - rectangleSize.width,
-          minY: 0,
-          maxY: containerRect.height - rectangleSize.height,
-        });
-      }
-    };
-
-    updateBoundaries();
-    window.addEventListener("resize", updateBoundaries);
-    return () => {
-      window.removeEventListener("resize", updateBoundaries);
-    };
-  }, []);
 
   useEffect(() => {
     const checkFocus = () => {
@@ -424,6 +411,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           let newX = prev.x + deltaX + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           let newY = prev.y + deltaY + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           
+          // Apply boundary constraints
           newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
           newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
           

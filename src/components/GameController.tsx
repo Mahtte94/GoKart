@@ -14,6 +14,7 @@ type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
   getTerrainInfo: () => boolean;
+  updateBoundaries: (boundaries: { minX: number; maxX: number; minY: number; maxY: number }) => void;
 }
 
 // Updated checkpoint positions to fit the 896x600 size
@@ -49,6 +50,7 @@ const GameController: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
+  const [currentScale, setCurrentScale] = useState<number>(1);
   
   // Game progression
   const [currentLap, setCurrentLap] = useState<number>(0);
@@ -207,41 +209,101 @@ const GameController: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Check if mobile view and calculate scale
+  // Improved mobile scaling calculation
   useEffect(() => {
     const checkMobileAndScale = () => {
       const isMobile = window.innerWidth < 768;
       setIsMobileView(isMobile);
       
       if (isMobile) {
-        // Calculate scale factor for mobile
+        // Get actual viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        // Game dimensions
         const gameWidth = 896;
         const gameHeight = 600;
-        const headerHeight = 50; // Header height
-        const controlsHeight = 100; // Space for mobile controls
-        const safePadding = 20; // Safe area padding
         
-        const availableWidth = window.innerWidth - safePadding;
-        const availableHeight = window.innerHeight - headerHeight - controlsHeight - safePadding;
+        // Calculate available space (accounting for UI elements)
+        const headerHeight = 50;
+        const controlsHeight = 100; // Fixed height for mobile controls
+        const safePadding = 10; // Reduced padding
         
+        const availableWidth = viewportWidth - (safePadding * 2);
+        const availableHeight = viewportHeight - headerHeight - controlsHeight - (safePadding * 2);
+        
+        // Calculate scale factors
         const scaleX = availableWidth / gameWidth;
         const scaleY = availableHeight / gameHeight;
-        const scale = Math.min(scaleX, scaleY, 0.9); // Cap at 90% to ensure controls are visible
+        
+        // Use the smaller scale to ensure the game fits
+        let scale = Math.min(scaleX, scaleY);
+        
+        // Device-specific scale limits
+        let minScale = 0.35;
+        let maxScale = 0.75;
+        
+        // Adjust scale limits based on device size
+        if (viewportWidth <= 568) { // iPhone SE
+          minScale = 0.35;
+          maxScale = 0.65;
+        } else if (viewportWidth <= 667) { // iPhone 6/7/8
+          minScale = 0.4;
+          maxScale = 0.7;
+        } else if (viewportWidth <= 844) { // iPhone 12 Pro
+          minScale = 0.45;
+          maxScale = 0.75;
+        } else { // iPhone 14 Pro Max and larger
+          minScale = 0.5;
+          maxScale = 0.8;
+        }
+        
+        scale = Math.max(minScale, Math.min(maxScale, scale));
+        
+        // Store the current scale
+        setCurrentScale(scale);
         
         // Set CSS variable for scale
         document.documentElement.style.setProperty('--scale-factor', scale.toString());
         
-        console.log(`Mobile scaling: ${scale} (${window.innerWidth}x${window.innerHeight})`);
+        // Update boundaries in the Gokart component
+        if (gokartRef.current) {
+          const kartSize = 64; // Go-kart sprite size
+          
+          gokartRef.current.updateBoundaries({
+            minX: 0,
+            maxX: gameWidth - kartSize, // Keep original coordinates
+            minY: 0,
+            maxY: gameHeight - kartSize, // Keep original coordinates
+          });
+        }
+        
+        console.log(`Mobile scaling: ${scale.toFixed(3)} (Viewport: ${viewportWidth}x${viewportHeight}, Available: ${availableWidth}x${availableHeight})`);
       } else {
         // Reset scale for desktop
+        setCurrentScale(1);
         document.documentElement.style.setProperty('--scale-factor', '1');
+        
+        // Reset boundaries for desktop
+        if (gokartRef.current) {
+          gokartRef.current.updateBoundaries({
+            minX: 0,
+            maxX: 896 - 64,
+            minY: 0,
+            maxY: 600 - 64,
+          });
+        }
       }
     };
     
+    // Initial check
     checkMobileAndScale();
+    
+    // Add event listeners
     window.addEventListener('resize', checkMobileAndScale);
     window.addEventListener('orientationchange', () => {
-      setTimeout(checkMobileAndScale, 200); // Increased delay for orientation change
+      // Longer delay for orientation change to let the viewport settle
+      setTimeout(checkMobileAndScale, 300);
     });
     
     return () => {
@@ -435,11 +497,18 @@ const GameController: React.FC = () => {
         </div>
       </div>
       
-      {/* Help text - hide on mobile */}
+      {/* Help text - hide on mobile, show scale info for debugging */}
       <div className="bg-gray-800 p-2 text-white text-xs hidden md:block flex-shrink-0">
         <p>Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug overlay. 
            Press <kbd className="bg-gray-700 px-1 rounded">C</kbd> to toggle checkpoint visibility.</p>
       </div>
+      
+      {/* Mobile debug info */}
+      {isMobileView && showDebug && (
+        <div className="bg-gray-800 p-2 text-white text-xs block md:hidden flex-shrink-0">
+          <p>Scale: {currentScale.toFixed(3)}, Viewport: {window.innerWidth}x{window.innerHeight}</p>
+        </div>
+      )}
     </div>
   );
 };

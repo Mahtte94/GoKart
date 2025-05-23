@@ -79,6 +79,7 @@ html, body, #root {
     right: 0;
     z-index: 1000;
     pointer-events: none;
+    padding: 0 10px 10px 10px;
   }
   
   .mobile-controls-container {
@@ -111,5 +112,39 @@ html, body, #root {
   
   .mobile-controls-wrapper {
     display: none;
+  }
+}
+
+/* Improved mobile landscape orientation */
+@media (max-width: 767px) and (orientation: landscape) {
+  .game-main {
+    /* Make sure there's enough space for controls */
+    padding-bottom: 120px;
+  }
+  
+  .mobile-controls-wrapper {
+    bottom: 10px;
+  }
+}
+
+/* Specific adjustments for very small screens */
+@media (max-width: 667px) and (orientation: landscape) {
+  .game-main {
+    padding-bottom: 100px;
+  }
+  
+  .mobile-controls-wrapper {
+    bottom: 5px;
+  }
+}
+
+/* Specific adjustments for iPhone SE */
+@media (max-width: 568px) and (orientation: landscape) {
+  .game-main {
+    padding-bottom: 90px;
+  }
+  
+  .mobile-controls-wrapper {
+    bottom: 5px;
   }
 }
