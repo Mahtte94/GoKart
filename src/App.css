@@ -75,7 +75,7 @@ html, body, #root {
     transform-origin: center center;
   }
   
-  /* Mobile controls positioned absolutely at bottom */
+  /* Mobile controls positioned absolutely at bottom - FIXED CENTERING */
   .mobile-controls-wrapper {
     position: absolute;
     bottom: 0;
@@ -88,12 +88,19 @@ html, body, #root {
     padding-bottom: max(8px, env(safe-area-inset-bottom));
     padding-left: max(8px, env(safe-area-inset-left));
     padding-right: max(8px, env(safe-area-inset-right));
+    
+    /* Ensure proper centering */
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
   
   .mobile-controls-container {
     pointer-events: auto;
-    max-width: 100%;
-    margin: 0 auto;
+    width: auto;
+    /* Remove max-width constraint that might interfere */
+    display: flex;
+    justify-content: center;
   }
   
   /* Prevent text selection and zoom on mobile */
