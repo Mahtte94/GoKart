@@ -1,6 +1,5 @@
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
 
-
 interface MobileControlsProps {
   onControlPress: (
     key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight",
@@ -24,53 +23,43 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
   const ControlButton = ({
     direction,
     icon,
-    label,
   }: {
     direction: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
     icon: React.ReactNode;
-    label: string;
   }) => (
-    <div className="flex flex-col items-center">
-      <div
-        className="bg-gray-700 rounded-lg p-2 w-14 h-14 flex items-center justify-center mb-2 active:bg-gray-600 cursor-pointer touch-manipulation"
-        onTouchStart={() => handleTouchStart(direction)}
-        onTouchEnd={() => handleTouchEnd(direction)}
-        onMouseDown={() => handleTouchStart(direction)}
-        onMouseUp={() => handleTouchEnd(direction)}
-        onMouseLeave={() => handleTouchEnd(direction)}
-      >
-        {icon}
-      </div>
-      <span className="text-white">{label}</span>
-    </div>
+    <button
+      className="bg-gray-700 bg-opacity-90 rounded-full p-3 w-16 h-16 flex items-center justify-center active:bg-gray-600 touch-none select-none shadow-lg"
+      onTouchStart={() => handleTouchStart(direction)}
+      onTouchEnd={() => handleTouchEnd(direction)}
+      onMouseDown={() => handleTouchStart(direction)}
+      onMouseUp={() => handleTouchEnd(direction)}
+      onMouseLeave={() => handleTouchEnd(direction)}
+    >
+      {icon}
+    </button>
   );
 
   return (
-    <div className="flex flex-col items-center mb-6  p-6 rounded-lg">
-      <div className="grid grid-cols-3 gap-4 text-center">
-        <div></div>
+    <div className="flex justify-center items-center gap-6 sm:gap-8 w-full px-4 py-3 bg-gray-900 bg-opacity-70 rounded-lg">
+      <div className="flex gap-3">
+        <ControlButton
+          direction="ArrowLeft"
+          icon={<ArrowLeft className="text-white w-7 h-7" />}
+        />
+        <ControlButton
+          direction="ArrowRight"
+          icon={<ArrowRight className="text-white w-7 h-7" />}
+        />
+      </div>
+      
+      <div className="flex gap-3">
+        <ControlButton
+          direction="ArrowDown"
+          icon={<ArrowDown className="text-white w-7 h-7" />}
+        />
         <ControlButton
           direction="ArrowUp"
-          icon={<ArrowUp className="text-white w-8 h-8" />}
-          label="Framåt"
-        />
-        <div></div>
-        <ControlButton 
-          direction="ArrowLeft" 
-          icon={<ArrowLeft className="text-white w-8 h-8" />}
-          label="Vänster"
-        />
-        
-        <ControlButton 
-          direction="ArrowDown" 
-          icon={<ArrowDown className="text-white w-8 h-8" />}
-          label="Bakåt"
-        />
-        
-        <ControlButton 
-          direction="ArrowRight" 
-          icon={<ArrowRight className="text-white w-8 h-8" />}
-          label="Höger"
+          icon={<ArrowUp className="text-white w-7 h-7" />}
         />
       </div>
     </div>

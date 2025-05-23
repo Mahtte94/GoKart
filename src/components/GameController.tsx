@@ -207,17 +207,46 @@ const GameController: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Check if mobile view
+  // Check if mobile view and calculate scale
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobileView(window.innerWidth < 768);
+    const checkMobileAndScale = () => {
+      const isMobile = window.innerWidth < 768;
+      setIsMobileView(isMobile);
+      
+      if (isMobile) {
+        // Calculate scale factor for mobile
+        const gameWidth = 896;
+        const gameHeight = 600;
+        const headerHeight = 50; // Header height
+        const controlsHeight = 100; // Space for mobile controls
+        const safePadding = 20; // Safe area padding
+        
+        const availableWidth = window.innerWidth - safePadding;
+        const availableHeight = window.innerHeight - headerHeight - controlsHeight - safePadding;
+        
+        const scaleX = availableWidth / gameWidth;
+        const scaleY = availableHeight / gameHeight;
+        const scale = Math.min(scaleX, scaleY, 0.9); // Cap at 90% to ensure controls are visible
+        
+        // Set CSS variable for scale
+        document.documentElement.style.setProperty('--scale-factor', scale.toString());
+        
+        console.log(`Mobile scaling: ${scale} (${window.innerWidth}x${window.innerHeight})`);
+      } else {
+        // Reset scale for desktop
+        document.documentElement.style.setProperty('--scale-factor', '1');
+      }
     };
     
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
+    checkMobileAndScale();
+    window.addEventListener('resize', checkMobileAndScale);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(checkMobileAndScale, 200); // Increased delay for orientation change
+    });
     
     return () => {
-      window.removeEventListener('resize', checkMobile);
+      window.removeEventListener('resize', checkMobileAndScale);
+      window.removeEventListener('orientationchange', checkMobileAndScale);
     };
   }, []);
 
@@ -277,17 +306,18 @@ const GameController: React.FC = () => {
   return (
     <div 
       ref={containerRef}
-      className="flex flex-col h-screen bg-gray-900"
+      className="game-wrapper"
       tabIndex={-1}
     >
       {/* Game header with timer */}
-      <div className="flex justify-between items-center p-3 bg-gray-800">
-        <h2 className="text-2xl font-bold text-white">Go-Kart Race</h2>
+      <div className="game-header flex justify-between items-center p-2 md:p-3 bg-gray-800">
+        <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white">Go-Kart Race</h2>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
           {bestTime !== null && (
-            <div className="text-yellow-300 font-mono">
-              <span className="mr-2 font-bold">BÄSTA TID:</span>
+            <div className="text-yellow-300 font-mono text-xs sm:text-sm md:text-base">
+              <span className="mr-1 md:mr-2 font-bold hidden sm:inline">BÄSTA TID:</span>
+              <span className="mr-1 md:mr-2 font-bold sm:hidden">BÄST:</span>
               {formatTime(bestTime)}
             </div>
           )}
@@ -306,10 +336,10 @@ const GameController: React.FC = () => {
       </div>
 
       {/* Main game area */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        {/* Changed to a fixed width container to match exact dimensions */}
-        <div className="w-[896px]"> 
-          <div className="relative">
+      <div className="game-main">
+        {/* Responsive container that scales based on viewport */}
+        <div className="game-container-wrapper"> 
+          <div className="relative game-container">
             {/* Main game elements */}
             <Gokart 
               key={gameKey}
@@ -332,13 +362,6 @@ const GameController: React.FC = () => {
               />
             ))}
             
-            {/* Mobile controls for touch screens */}
-            {isMobileView && gameState === 'playing' && (
-              <div className="absolute bottom-4 left-0 right-0 z-50">
-                <MobileControls onControlPress={handleControlPress} />
-              </div>
-            )}
-            
             {/* Debug overlay */}
             {showDebug && gameState === 'playing' && (
               <DebugOverlay
@@ -354,18 +377,18 @@ const GameController: React.FC = () => {
             
             {/* Game overlays */}
             {gameState === 'ready' && (
-              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
-                <h2 className="text-3xl font-bold mb-3 text-white">Go-Kart Race</h2>
-                <p className="text-lg mb-1 text-white">Kör {totalLaps} varv runt banan så snabbt du kan!</p>
-                <p className="text-sm mb-4 text-yellow-300 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50 p-4">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-white">Go-Kart Race</h2>
+                <p className="text-base sm:text-lg mb-1 text-white text-center">Kör {totalLaps} varv runt banan så snabbt du kan!</p>
+                <p className="text-xs sm:text-sm mb-4 text-yellow-300 flex items-center justify-center text-center">
                   <Flag size={14} className="inline mr-1" />
                   Du måste passera båda checkpoints
                   <CheckCircle size={14} className="inline mx-1" />
                   för att räkna ett varv!
                 </p>
                 
-                {/* Keyboard control instructions */}
-                <ControlInstructions />
+                {/* Keyboard control instructions - hide on mobile */}
+                {!isMobileView && <ControlInstructions />}
                 
                 <button 
                   onClick={startGame}
@@ -377,17 +400,17 @@ const GameController: React.FC = () => {
             )}
             
             {gameState === 'finished' && (
-              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
-                <h2 className="text-3xl font-bold mb-3 text-green-500">
+              <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50 p-4">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-3 text-green-500">
                   <Flag className="inline-block mr-2 mb-1" size={28} />
                   Målgång!
                 </h2>
-                <p className="text-xl mb-1 text-white">Du klarade alla {totalLaps} varv!</p>
-                <p className="text-xl mb-4 text-white">Din tid: <span className="font-mono font-bold">{formatTime(currentTime)}</span></p>
+                <p className="text-lg sm:text-xl mb-1 text-white">Du klarade alla {totalLaps} varv!</p>
+                <p className="text-lg sm:text-xl mb-4 text-white">Din tid: <span className="font-mono font-bold">{formatTime(currentTime)}</span></p>
                 
                 {bestTime === currentTime && (
                   <div className="bg-yellow-600 px-4 py-2 rounded-lg mb-4">
-                    <p className="text-xl text-yellow-300 font-bold">Nytt rekord!</p>
+                    <p className="text-lg sm:text-xl text-yellow-300 font-bold">Nytt rekord!</p>
                   </div>
                 )}
                 
@@ -400,11 +423,20 @@ const GameController: React.FC = () => {
               </div>
             )}
           </div>
+          
+          {/* Mobile controls - positioned absolutely within game area */}
+          {isMobileView && gameState === 'playing' && (
+            <div className="mobile-controls-wrapper">
+              <div className="mobile-controls-container">
+                <MobileControls onControlPress={handleControlPress} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
-      {/* Help text */}
-      <div className="bg-gray-800 p-2 text-white text-xs">
+      {/* Help text - hide on mobile */}
+      <div className="bg-gray-800 p-2 text-white text-xs hidden md:block flex-shrink-0">
         <p>Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug overlay. 
            Press <kbd className="bg-gray-700 px-1 rounded">C</kbd> to toggle checkpoint visibility.</p>
       </div>

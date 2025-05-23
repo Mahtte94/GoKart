@@ -514,7 +514,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden"
+      className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
       style={{ outline: "none", width: "896px", height: "600px" }} 
       onClick={handleContainerClick}

@@ -2,21 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
-#root {
-  box-sizing: border-box;
-  max-width: 1024px; /* Adjusted to fit the 896px game width plus some padding */
-  margin: 0 auto; 
-  padding: 0.5rem; /* Minimal padding to allow the game to be as large as possible */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-body {
-  height: 100vh;
-  overflow: hidden; /* Prevent scrolling when game is larger */
+/* Game container responsive scaling */
+.game-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #111827;
 }
 
-/* Add responsive adjustments for the game area */
-@media (max-width: 1440px) {
+.game-header {
+  flex-shrink: 0;
+  min-height: 50px;
+}
+
+.game-main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-container-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-container {
+  position: relative;
+  width: 896px;
+  height: 600px;
+}
+
+/* Desktop styles */
+@media (min-width: 768px) {
   #root {
+    max-width: 1024px;
+    margin: 0 auto;
+  }
+  
+  .game-wrapper {
     padding: 0.5rem;
+  }
+}
+
+/* Mobile styles */
+@media (max-width: 767px) {
+  .game-container {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(var(--scale-factor));
+    transform-origin: center center;
+  }
+  
+  /* Mobile controls positioning */
+  .mobile-controls-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  
+  .mobile-controls-container {
+    pointer-events: auto;
+  }
+}
+
+/* Mobile portrait styles - prompt to rotate */
+@media (max-width: 767px) and (orientation: portrait) {
+  .game-container-wrapper::before {
+    content: "↻ Rotera din telefon för att spela";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.25rem;
+    color: white;
+    text-align: center;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 80%;
+    max-width: 300px;
+  }
+  
+  .game-container {
+    opacity: 0.1;
+  }
+  
+  .mobile-controls-wrapper {
+    display: none;
   }
 }
