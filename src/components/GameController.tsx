@@ -345,9 +345,9 @@ const GameController: React.FC = () => {
                 
                 <button 
                   onClick={startGame}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
-                  Starta Lopp
+                  Starta Lopp - 3€
                 </button>
               </div>
             )}
