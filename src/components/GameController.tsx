@@ -4,7 +4,6 @@ import Timer from "./Timer";
 import LapIndicator from "./LapIndicator";
 import FinishLine from "./FinishLine";
 import Checkpoint from "./Checkpoint";
-import DebugOverlay from "./DebugOverlay";
 import {
   ArrowUp,
   ArrowDown,
