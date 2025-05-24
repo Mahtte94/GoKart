@@ -150,7 +150,8 @@ const GameController: React.FC = () => {
         const gameWidth = 896;
         const gameHeight = 600;
         
-        const headerHeight = 50;
+        // Smaller header height for mobile
+        const headerHeight = 40;
         const controlsHeight = 55;
         const verticalPadding = 15;
         const horizontalPadding = 10;
@@ -377,16 +378,14 @@ const GameController: React.FC = () => {
             )}
           </div>
         </div>
-        
-        {/* Mobile controls - positioned absolutely at bottom of main area */}
-        {isMobileView && gameState === 'playing' && (
-          <div className="mobile-controls-wrapper">
-            <div className="mobile-controls-container">
-              <MobileControls onControlPress={handleControlPress} />
-            </div>
-          </div>
-        )}
       </div>
+      
+      {/* Mobile controls section - below game area */}
+      {isMobileView && gameState === 'playing' && (
+        <div className="mobile-controls-section">
+          <MobileControls onControlPress={handleControlPress} />
+        </div>
+      )}
     </div>
   );
 };
