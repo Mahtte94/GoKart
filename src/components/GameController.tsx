@@ -4,7 +4,6 @@ import Timer from "./Timer";
 import LapIndicator from './LapIndicator';
 import FinishLine from './FinishLine';
 import Checkpoint from './Checkpoint';
-import DebugOverlay from './DebugOverlay';
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Flag, CheckCircle } from "lucide-react";
 import MobileControls from "./MobileControls";
 
@@ -12,7 +11,6 @@ type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
-  getTerrainInfo: () => boolean;
   updateBoundaries: (boundaries: { minX: number; maxX: number; minY: number; maxY: number }) => void;
 }
 
@@ -52,13 +50,7 @@ const GameController: React.FC = () => {
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const checkpointsPassedRef = useRef<boolean[]>([false, false]);
   const canCountLapRef = useRef<boolean>(false);
-  const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   
-  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
-  const [maxSpeed, setMaxSpeed] = useState<number>(8);
-  
-  const [showDebug, setShowDebug] = useState<boolean>(true);
-  const [checkpointsVisible, setCheckpointsVisible] = useState<boolean>(true);
   const [gameKey, setGameKey] = useState<number>(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,16 +71,6 @@ const GameController: React.FC = () => {
   const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
     lastPositionRef.current = position;
     
-    if (gokartRef.current) {
-      setIsOnTrack(gokartRef.current.getTerrainInfo());
-    }
-    
-    if (showDebug) {
-      console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(position.y)}, 
-        Checkpoints: [${checkpointsPassedRef.current.join(', ')}], 
-        Can count lap: ${canCountLapRef.current}`);
-    }
-    
     const isOnFinishLine = 
       position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
       position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
@@ -102,7 +84,6 @@ const GameController: React.FC = () => {
       
       if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
         checkpointsPassedRef.current[index] = true;
-        console.log(`Checkpoint ${index + 1} passed!`);
       }
     });
     
@@ -111,7 +92,6 @@ const GameController: React.FC = () => {
     if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
       setCurrentLap(prev => {
         const newLap = prev + 1;
-        console.log(`Lap completed! New lap: ${newLap}`);
         
         if (newLap >= totalLaps) {
           handleFinish();
@@ -126,12 +106,7 @@ const GameController: React.FC = () => {
         canCountLapRef.current = true;
       }, 1000);
     }
-  }, [handleFinish, totalLaps, showDebug]);
-
-  const handleSpeedUpdate = useCallback((speed: number, maxSpeedValue: number) => {
-    setCurrentSpeed(speed);
-    setMaxSpeed(maxSpeedValue);
-  }, []);
+  }, [handleFinish, totalLaps]);
 
   const startGame = useCallback(() => {
     setGameState("playing");
@@ -145,8 +120,6 @@ const GameController: React.FC = () => {
     setTimeout(() => {
       canCountLapRef.current = true;
     }, 1500);
-    
-    console.log("Game started! Lap tracking initialized.");
     
     if (containerRef.current) {
       containerRef.current.focus();
@@ -163,20 +136,6 @@ const GameController: React.FC = () => {
     const secsStr = secs < 10 ? `0${secs}` : `${secs}`;
     
     return `${minsStr}:${secsStr}`;
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'd' || e.key === 'D') {
-        setShowDebug(prev => !prev);
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        setCheckpointsVisible(prev => !prev);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => {
@@ -222,15 +181,6 @@ const GameController: React.FC = () => {
             maxY: gameHeight - kartSize,
           });
         }
-        
-        console.log(`Mobile scaling:`, {
-          viewport: `${viewportWidth}x${viewportHeight}`,
-          reserved: `V:${reservedVertical}, H:${reservedHorizontal}`,
-          available: `${availableWidth}x${availableHeight}`,
-          scale: scale.toFixed(3),
-          scaleFactors: `X:${scaleX.toFixed(3)}, Y:${scaleY.toFixed(3)}`,
-          constraints: `min:${minScale}, max:${maxScale}`
-        });
         
       } else {
         setCurrentScale(1);
@@ -363,14 +313,13 @@ const GameController: React.FC = () => {
               ref={gokartRef}
               isGameActive={gameState === 'playing'}
               onPositionUpdate={handlePositionUpdate}
-              onSpeedUpdate={handleSpeedUpdate}
             />
             
             {/* Finish line */}
             <FinishLine position={{ x: FINISH_LINE.x, y: FINISH_LINE.y }} />
             
-            {/* Show checkpoints if visible */}
-            {checkpointsVisible && gameState === 'playing' && CHECKPOINTS.map((checkpoint, index) => (
+            {/* Show checkpoints */}
+            {gameState === 'playing' && CHECKPOINTS.map((checkpoint, index) => (
               <Checkpoint 
                 key={checkpoint.id}
                 position={{ x: checkpoint.x, y: checkpoint.y }} 
@@ -378,19 +327,6 @@ const GameController: React.FC = () => {
                 index={index + 1}
               />
             ))}
-            
-            {/* Debug overlay */}
-            {showDebug && gameState === 'playing' && (
-              <DebugOverlay
-                position={lastPositionRef.current}
-                checkpointsPassed={checkpointsPassedRef.current}
-                currentLap={currentLap}
-                canCountLap={canCountLapRef.current}
-                isOnTrack={isOnTrack}
-                currentSpeed={currentSpeed}
-                maxSpeed={maxSpeed}
-              />
-            )}
             
             {/* Game overlays */}
             {gameState === 'ready' && (
@@ -451,19 +387,6 @@ const GameController: React.FC = () => {
           </div>
         )}
       </div>
-      
-      {/* Help text - hide on mobile, show scale info for debugging */}
-      <div className="bg-gray-800 p-2 text-white text-xs hidden md:block flex-shrink-0">
-        <p>Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle debug overlay. 
-           Press <kbd className="bg-gray-700 px-1 rounded">C</kbd> to toggle checkpoint visibility.</p>
-      </div>
-      
-      {/* Mobile debug info */}
-      {isMobileView && showDebug && (
-        <div className="bg-gray-800 p-2 text-white text-xs block md:hidden flex-shrink-0">
-          <p>Scale: {currentScale.toFixed(3)}, Viewport: {window.innerWidth}x{window.innerHeight}</p>
-        </div>
-      )}
     </div>
   );
 };
