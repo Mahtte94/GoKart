@@ -10,14 +10,12 @@ import MobileControls from "./MobileControls";
 
 type GameState = 'ready' | 'playing' | 'gameover' | 'finished';
 
-// Define the interface for the Gokart component ref
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
   getTerrainInfo: () => boolean;
   updateBoundaries: (boundaries: { minX: number; maxX: number; minY: number; maxY: number }) => void;
 }
 
-// Updated checkpoint positions to fit the 896x600 size
 const CHECKPOINTS = [
   {
     id: 1,
@@ -33,26 +31,22 @@ const CHECKPOINTS = [
   }
 ];
 
-// Finish line at the top of the track
 const FINISH_LINE = {
-  x: 448, // Original position from first screenshot
+  x: 448,
   y: 104, 
   width: 20, 
   height: 100, 
 };
 
-// Total number of laps to complete
 const TOTAL_LAPS = 3;
 
 const GameController: React.FC = () => {
-  // Game state and timing
   const [gameState, setGameState] = useState<GameState>("ready");
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
   const [currentScale, setCurrentScale] = useState<number>(1);
   
-  // Game progression
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(TOTAL_LAPS);
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -60,115 +54,93 @@ const GameController: React.FC = () => {
   const canCountLapRef = useRef<boolean>(false);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   
-  // Kart physics data
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(8);
   
-  // UI and debugging
   const [showDebug, setShowDebug] = useState<boolean>(true);
   const [checkpointsVisible, setCheckpointsVisible] = useState<boolean>(true);
-  const [gameKey, setGameKey] = useState<number>(0); // Used to reset the game
+  const [gameKey, setGameKey] = useState<number>(0);
   
-  // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
 
-  // Update time when Timer component updates
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
   }, []);
 
-  // Handle race completion
   const handleFinish = useCallback(() => {
     setGameState("finished");
 
-    // Update best time if current is better
     if (bestTime === null || currentTime < bestTime) {
       setBestTime(currentTime);
     }
   }, [currentTime, bestTime]);
 
-  // Track go-kart position and handle checkpoint/lap tracking
   const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
-    // Store the last position
     lastPositionRef.current = position;
     
-    // Update terrain info from the kart component
     if (gokartRef.current) {
       setIsOnTrack(gokartRef.current.getTerrainInfo());
     }
     
-    // Debug position info
     if (showDebug) {
       console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(position.y)}, 
         Checkpoints: [${checkpointsPassedRef.current.join(', ')}], 
         Can count lap: ${canCountLapRef.current}`);
     }
     
-    // Detect finish line crossing
     const isOnFinishLine = 
       position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
       position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
       position.y <= FINISH_LINE.y + FINISH_LINE.height;
     
-    // Check each checkpoint
     CHECKPOINTS.forEach((checkpoint, index) => {
       const distanceToCheckpoint = Math.sqrt(
         Math.pow(position.x - checkpoint.x, 2) + 
         Math.pow(position.y - checkpoint.y, 2)
       );
       
-      // If kart is within checkpoint radius and it hasn't been passed yet
       if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
         checkpointsPassedRef.current[index] = true;
         console.log(`Checkpoint ${index + 1} passed!`);
       }
     });
     
-    // Check if all checkpoints have been passed
     const allCheckpointsPassed = checkpointsPassedRef.current.every(passed => passed);
     
-    // Count a lap when crossing finish line after all checkpoints
     if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
       setCurrentLap(prev => {
         const newLap = prev + 1;
         console.log(`Lap completed! New lap: ${newLap}`);
         
-        // If all laps are completed, end the game
         if (newLap >= totalLaps) {
           handleFinish();
         }
         return newLap;
       });
       
-      // Reset checkpoint status and temporarily disable lap counting
       checkpointsPassedRef.current = [false, false];
       canCountLapRef.current = false;
       
-      // After a delay, re-enable lap counting
       setTimeout(() => {
         canCountLapRef.current = true;
       }, 1000);
     }
   }, [handleFinish, totalLaps, showDebug]);
 
-  // Receive speed updates from the Gokart component
   const handleSpeedUpdate = useCallback((speed: number, maxSpeedValue: number) => {
     setCurrentSpeed(speed);
     setMaxSpeed(maxSpeedValue);
   }, []);
 
-  // Start/restart the game
   const startGame = useCallback(() => {
     setGameState("playing");
     setCurrentTime(0);
     setCurrentLap(0);
-    setGameKey(prevKey => prevKey + 1); // Force Gokart component to reset
+    setGameKey(prevKey => prevKey + 1);
     
-    // Reset checkpoint status
     checkpointsPassedRef.current = [false, false];
     
-    // Enable lap counting after a short delay to move away from the finish line
     canCountLapRef.current = false;
     setTimeout(() => {
       canCountLapRef.current = true;
@@ -181,7 +153,6 @@ const GameController: React.FC = () => {
     }
   }, []);
 
-  // Format time for display
   const formatTime = useCallback((seconds: number | null): string => {
     if (seconds === null) return "--:--";
     
@@ -194,7 +165,6 @@ const GameController: React.FC = () => {
     return `${minsStr}:${secsStr}`;
   }, []);
 
-  // Handle keyboard debug toggles
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'd' || e.key === 'D') {
@@ -209,42 +179,40 @@ const GameController: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // SIMPLIFIED mobile scaling calculation
   useEffect(() => {
     const checkMobileAndScale = () => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = window.innerWidth < 1024;
       setIsMobileView(isMobile);
       
       if (isMobile) {
-        // Get actual viewport dimensions
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         
-        // Game dimensions
         const gameWidth = 896;
         const gameHeight = 600;
         
-        // SIMPLIFIED: Reserve space for UI elements
-        const reservedVertical = 160; // Header (50) + Controls (70) + Padding (40)
-        const reservedHorizontal = 20; // Small horizontal padding
+        const headerHeight = 50;
+        const controlsHeight = 55;
+        const verticalPadding = 15;
+        const horizontalPadding = 10;
         
-        // Calculate available space
+        const reservedVertical = headerHeight + controlsHeight + verticalPadding;
+        const reservedHorizontal = horizontalPadding;
+        
         const availableWidth = viewportWidth - reservedHorizontal;
         const availableHeight = viewportHeight - reservedVertical;
         
-        // Calculate scale - use the smaller ratio to ensure everything fits
         const scaleX = availableWidth / gameWidth;
         const scaleY = availableHeight / gameHeight;
         let scale = Math.min(scaleX, scaleY);
         
-        // Apply reasonable constraints
-        scale = Math.max(0.3, Math.min(0.9, scale)); // Between 30% and 90%
+        const minScale = 0.4;
+        const maxScale = 0.95;
+        scale = Math.max(minScale, Math.min(maxScale, scale));
         
-        // Store and apply the scale
         setCurrentScale(scale);
         document.documentElement.style.setProperty('--scale-factor', scale.toString());
-        
-        // Update boundaries in the Gokart component
+
         if (gokartRef.current) {
           const kartSize = 64;
           gokartRef.current.updateBoundaries({
@@ -255,16 +223,16 @@ const GameController: React.FC = () => {
           });
         }
         
-        // Debug information
         console.log(`Mobile scaling:`, {
           viewport: `${viewportWidth}x${viewportHeight}`,
+          reserved: `V:${reservedVertical}, H:${reservedHorizontal}`,
           available: `${availableWidth}x${availableHeight}`,
           scale: scale.toFixed(3),
-          scaleFactors: `X:${scaleX.toFixed(3)}, Y:${scaleY.toFixed(3)}`
+          scaleFactors: `X:${scaleX.toFixed(3)}, Y:${scaleY.toFixed(3)}`,
+          constraints: `min:${minScale}, max:${maxScale}`
         });
         
       } else {
-        // Desktop - no scaling needed
         setCurrentScale(1);
         document.documentElement.style.setProperty('--scale-factor', '1');
         
@@ -279,26 +247,21 @@ const GameController: React.FC = () => {
       }
     };
     
-    // Initial check
     checkMobileAndScale();
     
-    // Debounced resize handler
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(checkMobileAndScale, 100);
     };
     
-    // Orientation change handler with longer delay
     const handleOrientationChange = () => {
       setTimeout(checkMobileAndScale, 300);
     };
     
-    // Add event listeners
     window.addEventListener('resize', debouncedResize);
     window.addEventListener('orientationchange', handleOrientationChange);
     
-    // Cleanup
     return () => {
       clearTimeout(resizeTimeout);
       window.removeEventListener('resize', debouncedResize);
@@ -306,7 +269,6 @@ const GameController: React.FC = () => {
     };
   }, []);
 
-  // Handle game controls
   const handleControlPress = (
     key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight",
     isPressed: boolean
@@ -316,7 +278,6 @@ const GameController: React.FC = () => {
     }
   };
 
-  // Control instructions component
   const ControlInstructions = () => (
     <div className="flex flex-col items-center mb-4 bg-gray-800 bg-opacity-90 p-4 rounded-lg">
       <h3 className="text-white font-bold mb-3 text-lg">Tangentbordskontroller:</h3>

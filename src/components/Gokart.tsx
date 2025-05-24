@@ -41,14 +41,12 @@ const START_POSITION: Position = {
   rotation: 270,
 };
 
-// Use forwardRef to expose methods to parent component
 const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const { isGameActive = false, onPositionUpdate, onSpeedUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  // State variables
   const [position, setPosition] = useState<Position>(START_POSITION);
   const [baseSpeed] = useState<number>(4);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
@@ -67,7 +65,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const GRASS_DRAG = 1.2;
   const MAX_SHAKE = 2;
 
-  // Updated boundaries state with proper initial values
   const [boundaries, setBoundaries] = useState<Boundaries>({
     minX: 0,
     maxX: 896 - rectangleSize.width,
@@ -411,7 +408,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           let newX = prev.x + deltaX + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           let newY = prev.y + deltaY + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
           
-          // Apply boundary constraints
           newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
           newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
           

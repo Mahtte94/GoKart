@@ -13,24 +13,24 @@ const Checkpoint: React.FC<CheckpointProps> = ({ position, isPassed, index }) =>
       className="absolute left-0 top-0"
       style={{
         transform: `translate(${position.x}px, ${position.y}px)`,
-        zIndex: 9999, // Extremely high z-index to ensure it's above everything
+        zIndex: 9999,
         width: 0,
         height: 0,
-        pointerEvents: 'none' // So it doesn't interfere with game controls
+        pointerEvents: 'none'
       }}
     >
       {/* Outer pulsing circle - made smaller */}
       <div 
         className={`absolute ${isPassed ? 'bg-green-500' : 'bg-yellow-500'} rounded-full animate-pulse`}
         style={{
-          opacity: 0.4, // Reduced opacity to make it less prominent
-          width: '50px', // Reduced from 80px
-          height: '50px', // Reduced from 80px
-          left: '-25px', // Adjusted centering
-          top: '-25px', // Adjusted centering
+          opacity: 0.4,
+          width: '50px',
+          height: '50px',
+          left: '-25px',
+          top: '-25px',
           boxShadow: isPassed 
-            ? '0 0 20px 5px rgba(16, 185, 129, 0.5)' // Reduced glow
-            : '0 0 20px 5px rgba(245, 158, 11, 0.5)', // Reduced glow
+            ? '0 0 20px 5px rgba(16, 185, 129, 0.5)'
+            : '0 0 20px 5px rgba(245, 158, 11, 0.5)',
           animation: 'pulse 1.5s infinite'
         }}
       />
@@ -39,17 +39,17 @@ const Checkpoint: React.FC<CheckpointProps> = ({ position, isPassed, index }) =>
       <div 
         className={`absolute ${isPassed ? 'bg-green-600' : 'bg-yellow-600'} rounded-full flex items-center justify-center border-2 ${isPassed ? 'border-green-800' : 'border-yellow-800'}`}
         style={{
-          width: '32px', // Reduced from 50px
-          height: '32px', // Reduced from 50px
-          left: '-16px', // Adjusted centering
-          top: '-16px', // Adjusted centering
+          width: '32px',
+          height: '32px',
+          left: '-16px',
+          top: '-16px',
         }}
       >
         <Circle 
           className="text-white" 
-          size={20} // Reduced from 30
+          size={20}
           fill={isPassed ? "#10B981" : "#D97706"} 
-          strokeWidth={2} // Reduced from 3
+          strokeWidth={2}
         />
       </div>
       

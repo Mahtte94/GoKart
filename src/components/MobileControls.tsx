@@ -33,8 +33,8 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
     <button
       className={`bg-gray-700 bg-opacity-95 rounded-full flex items-center justify-center active:bg-gray-600 active:scale-95 touch-none select-none shadow-lg border-2 border-gray-600 active:border-gray-500 transition-all duration-75 ${className}`}
       style={{
-        width: '26px',  // Fixed size for consistency
-        height: '26px', // Fixed size for consistency
+        width: '26px',
+        height: '26px',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
         userSelect: 'none',
@@ -82,9 +82,9 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
     <div 
       className="flex justify-between items-center w-full bg-gray-900 bg-opacity-90 rounded-2xl shadow-2xl backdrop-blur-sm border border-gray-700"
       style={{
-        maxWidth: '200px', // Slightly smaller max width
-        padding: '8px',   // Fixed padding
-        gap: '12px',       // Fixed gap
+        maxWidth: '200px',
+        padding: '8px',
+        gap: '12px',
       }}
     >
       {/* Steering controls */}

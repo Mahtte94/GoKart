@@ -10,7 +10,6 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* Game container responsive scaling */
 .game-wrapper {
   position: relative;
   width: 100%;
@@ -61,21 +60,17 @@ html, body, #root {
   }
 }
 
-/* Mobile styles */
-@media (max-width: 767px) {
-  /* Use viewport units that account for mobile browser UI */
+@media (max-width: 1024px) {
   .game-wrapper {
     height: 100vh;
-    height: 100dvh; /* Dynamic viewport height - better for mobile */
+    height: 100dvh;
   }
   
   .game-container {
-    /* Scale the game container */
     transform: scale(var(--scale-factor));
     transform-origin: center center;
   }
   
-  /* Mobile controls positioned absolutely at bottom - FIXED CENTERING */
   .mobile-controls-wrapper {
     position: absolute;
     bottom: 0;
@@ -84,12 +79,10 @@ html, body, #root {
     z-index: 1000;
     pointer-events: none;
     padding: 8px;
-    /* Account for iPhone safe area */
     padding-bottom: max(8px, env(safe-area-inset-bottom));
     padding-left: max(8px, env(safe-area-inset-left));
     padding-right: max(8px, env(safe-area-inset-right));
     
-    /* Ensure proper centering */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -98,12 +91,10 @@ html, body, #root {
   .mobile-controls-container {
     pointer-events: auto;
     width: auto;
-    /* Remove max-width constraint that might interfere */
     display: flex;
     justify-content: center;
   }
   
-  /* Prevent text selection and zoom on mobile */
   .game-wrapper * {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -113,8 +104,7 @@ html, body, #root {
   }
 }
 
-/* Mobile portrait styles - prompt to rotate */
-@media (max-width: 767px) and (orientation: portrait) {
+@media (max-width: 1024px) and (orientation: portrait) {
   .game-container-wrapper::before {
     content: "↻ Rotera din telefon för att spela";
     position: absolute;
