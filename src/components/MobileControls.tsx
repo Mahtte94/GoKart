@@ -1,3 +1,4 @@
+import React from 'react';
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
 
 interface MobileControlsProps {
@@ -23,43 +24,98 @@ const MobileControls: React.FC<MobileControlsProps> = ({ onControlPress }) => {
   const ControlButton = ({
     direction,
     icon,
+    className = "",
   }: {
     direction: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
     icon: React.ReactNode;
+    className?: string;
   }) => (
     <button
-      className="bg-gray-700 bg-opacity-90 rounded-full p-3 w-16 h-16 flex items-center justify-center active:bg-gray-600 touch-none select-none shadow-lg"
-      onTouchStart={() => handleTouchStart(direction)}
-      onTouchEnd={() => handleTouchEnd(direction)}
-      onMouseDown={() => handleTouchStart(direction)}
-      onMouseUp={() => handleTouchEnd(direction)}
-      onMouseLeave={() => handleTouchEnd(direction)}
+      className={`bg-gray-700 bg-opacity-95 rounded-full flex items-center justify-center active:bg-gray-600 active:scale-95 touch-none select-none shadow-lg border-2 border-gray-600 active:border-gray-500 transition-all duration-75 ${className}`}
+      style={{
+        width: '26px',
+        height: '26px',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      }}
+      onTouchStart={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchStart(direction);
+      }}
+      onTouchEnd={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchEnd(direction);
+      }}
+      onTouchCancel={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchEnd(direction);
+      }}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchStart(direction);
+      }}
+      onMouseUp={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchEnd(direction);
+      }}
+      onMouseLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleTouchEnd(direction);
+      }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+      }}
     >
       {icon}
     </button>
   );
 
   return (
-    <div className="flex justify-center items-center gap-6 sm:gap-8 w-full px-4 py-3 bg-gray-900 bg-opacity-70 rounded-lg">
-      <div className="flex gap-3">
+    <div 
+      className="flex justify-between items-center w-full bg-gray-900 bg-opacity-90 rounded-2xl shadow-2xl backdrop-blur-sm border border-gray-700"
+      style={{
+        maxWidth: '200px',
+        padding: '8px',
+        gap: '12px',
+      }}
+    >
+      {/* Steering controls */}
+      <div 
+        className="flex"
+        style={{ gap: '10px' }}
+      >
         <ControlButton
           direction="ArrowLeft"
-          icon={<ArrowLeft className="text-white w-7 h-7" />}
+          icon={<ArrowLeft className="text-white w-6 h-6" />}
         />
         <ControlButton
           direction="ArrowRight"
-          icon={<ArrowRight className="text-white w-7 h-7" />}
+          icon={<ArrowRight className="text-white w-6 h-6" />}
         />
       </div>
       
-      <div className="flex gap-3">
+      {/* Acceleration controls */}
+      <div 
+        className="flex"
+        style={{ gap: '10px' }}
+      >
         <ControlButton
           direction="ArrowDown"
-          icon={<ArrowDown className="text-white w-7 h-7" />}
+          icon={<ArrowDown className="text-white w-6 h-6" />}
+          className="bg-red-700 bg-opacity-95 active:bg-red-600 border-red-600 active:border-red-500"
         />
         <ControlButton
           direction="ArrowUp"
-          icon={<ArrowUp className="text-white w-7 h-7" />}
+          icon={<ArrowUp className="text-white w-6 h-6" />}
+          className="bg-green-700 bg-opacity-95 active:bg-green-600 border-green-600 active:border-green-500"
         />
       </div>
     </div>

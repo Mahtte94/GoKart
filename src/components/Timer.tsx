@@ -8,7 +8,6 @@ interface TimerProps {
   className?: string;
 }
 
-// TypeScript type for the timer interval
 type TimerInterval = ReturnType<typeof setTimeout>; // Use this instead of NodeJS.Timeout
 
 const Timer: React.FC<TimerProps> = ({
@@ -33,7 +32,6 @@ const Timer: React.FC<TimerProps> = ({
     return 'text-red-500';
   }, []);
 
-  // Timer effect - only update local state
   useEffect(() => {
     let interval: TimerInterval | undefined = undefined;
     if (isRunning) {

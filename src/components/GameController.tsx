@@ -18,13 +18,11 @@ import TivoliApiService from "../api/TivoliApiService";
 
 type GameState = "ready" | "playing" | "gameover" | "finished";
 
-// Define the interface for the Gokart component ref
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
-  getTerrainInfo: () => boolean;
+  updateBoundaries: (boundaries: { minX: number; maxX: number; minY: number; maxY: number }) => void;
 }
 
-// Updated checkpoint positions to fit the 896x600 size
 const CHECKPOINTS = [
   {
     id: 1,
@@ -40,26 +38,23 @@ const CHECKPOINTS = [
   },
 ];
 
-// Finish line at the top of the track
 const FINISH_LINE = {
-  x: 448, // Original position from first screenshot
-  y: 104,
-  width: 20,
-  height: 100,
+  x: 448,
+  y: 104, 
+  width: 20, 
+  height: 100, 
 };
 
-// Total number of laps to complete
 const TOTAL_LAPS = 3;
 
 const GameController: React.FC = () => {
-  // Game state and timing
   const [gameState, setGameState] = useState<GameState>("ready");
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
+  const [currentScale, setCurrentScale] = useState<number>(1);
 
-  // Game progression
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(TOTAL_LAPS);
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -80,105 +75,58 @@ const GameController: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
 
-  // Update time when Timer component updates
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
   }, []);
 
-  // Handle race completion
   const handleFinish = useCallback(() => {
     setGameState("finished");
 
-    // Update best time if current is better
     if (bestTime === null || currentTime < bestTime) {
       setBestTime(currentTime);
     }
   }, [currentTime, bestTime]);
 
-  // Track go-kart position and handle checkpoint/lap tracking
-  const handlePositionUpdate = useCallback(
-    (position: { x: number; y: number }) => {
-      // Store the last position
-      lastPositionRef.current = position;
-
-      // Update terrain info from the kart component
-      if (gokartRef.current) {
-        setIsOnTrack(gokartRef.current.getTerrainInfo());
-      }
-
-      // Debug position info
-      if (showDebug) {
-        console.log(`Position: x=${Math.round(position.x)}, y=${Math.round(
-          position.y
-        )}, 
-        Checkpoints: [${checkpointsPassedRef.current.join(", ")}], 
-        Can count lap: ${canCountLapRef.current}`);
-      }
-
-      // Detect finish line crossing
-      const isOnFinishLine =
-        position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
-        position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
-        position.y <= FINISH_LINE.y + FINISH_LINE.height;
-
-      // Check each checkpoint
-      CHECKPOINTS.forEach((checkpoint, index) => {
-        const distanceToCheckpoint = Math.sqrt(
-          Math.pow(position.x - checkpoint.x, 2) +
-            Math.pow(position.y - checkpoint.y, 2)
-        );
-
-        // If kart is within checkpoint radius and it hasn't been passed yet
-        if (
-          distanceToCheckpoint <= checkpoint.radius &&
-          !checkpointsPassedRef.current[index]
-        ) {
-          checkpointsPassedRef.current[index] = true;
-          console.log(`Checkpoint ${index + 1} passed!`);
-        }
-      });
-
-      // Check if all checkpoints have been passed
-      const allCheckpointsPassed = checkpointsPassedRef.current.every(
-        (passed) => passed
+  const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
+    lastPositionRef.current = position;
+    
+    const isOnFinishLine = 
+      position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
+      position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
+      position.y <= FINISH_LINE.y + FINISH_LINE.height;
+    
+    CHECKPOINTS.forEach((checkpoint, index) => {
+      const distanceToCheckpoint = Math.sqrt(
+        Math.pow(position.x - checkpoint.x, 2) + 
+        Math.pow(position.y - checkpoint.y, 2)
       );
-
-      // Count a lap when crossing finish line after all checkpoints
-      if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
-        setCurrentLap((prev) => {
-          const newLap = prev + 1;
-          console.log(`Lap completed! New lap: ${newLap}`);
-
-          // If all laps are completed, end the game
-          if (newLap >= totalLaps) {
-            handleFinish();
-          }
-          return newLap;
-        });
-
-        // Reset checkpoint status and temporarily disable lap counting
-        checkpointsPassedRef.current = [false, false];
-        canCountLapRef.current = false;
-
-        // After a delay, re-enable lap counting
-        setTimeout(() => {
-          canCountLapRef.current = true;
-        }, 1000);
+      
+      if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
+        checkpointsPassedRef.current[index] = true;
       }
-    },
-    [handleFinish, totalLaps, showDebug]
-  );
+    });
+    
+    const allCheckpointsPassed = checkpointsPassedRef.current.every(passed => passed);
+    
+    if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
+      setCurrentLap(prev => {
+        const newLap = prev + 1;
+        
+        if (newLap >= totalLaps) {
+          handleFinish();
+        }
+        return newLap;
+      });
+      
+      checkpointsPassedRef.current = [false, false];
+      canCountLapRef.current = false;
+      
+      setTimeout(() => {
+        canCountLapRef.current = true;
+      }, 1000);
+    }
+  }, [handleFinish, totalLaps]);
 
-  // Receive speed updates from the Gokart component
-  const handleSpeedUpdate = useCallback(
-    (speed: number, maxSpeedValue: number) => {
-      setCurrentSpeed(speed);
-      setMaxSpeed(maxSpeedValue);
-    },
-    []
-  );
-
-  // Start/restart the game
   const startGame = useCallback(() => {
     // Try to buy ticket (pay fee)
     TivoliApiService.reportSpin()
@@ -206,7 +154,6 @@ const GameController: React.FC = () => {
       });
   }, []);
 
-  // Format time for display
   const formatTime = useCallback((seconds: number | null): string => {
     if (seconds === null) return "--:--";
 
@@ -251,71 +198,88 @@ const GameController: React.FC = () => {
     </div>
   );
 
-  // Handle keyboard debug toggles
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "d" || e.key === "D") {
-        setShowDebug((prev) => !prev);
-      }
-      if (e.key === "c" || e.key === "C") {
-        setCheckpointsVisible((prev) => !prev);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Check if mobile view and calculate scale
   useEffect(() => {
     const checkMobileAndScale = () => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = window.innerWidth < 1024;
       setIsMobileView(isMobile);
 
       if (isMobile) {
-        // Calculate scale factor for mobile
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
         const gameWidth = 896;
         const gameHeight = 600;
-        const headerHeight = 50; // Header height
-        const controlsHeight = 100; // Space for mobile controls
-        const safePadding = 20; // Safe area padding
-
-        const availableWidth = window.innerWidth - safePadding;
-        const availableHeight =
-          window.innerHeight - headerHeight - controlsHeight - safePadding;
-
+        
+        // Smaller header height for mobile
+        const headerHeight = 40;
+        const controlsHeight = 55;
+        const verticalPadding = 15;
+        const horizontalPadding = 10;
+        
+        const reservedVertical = headerHeight + controlsHeight + verticalPadding;
+        const reservedHorizontal = horizontalPadding;
+        
+        const availableWidth = viewportWidth - reservedHorizontal;
+        const availableHeight = viewportHeight - reservedVertical;
+        
         const scaleX = availableWidth / gameWidth;
         const scaleY = availableHeight / gameHeight;
-        const scale = Math.min(scaleX, scaleY, 0.9); // Cap at 90% to ensure controls are visible
+        let scale = Math.min(scaleX, scaleY);
+        
+        const minScale = 0.4;
+        const maxScale = 0.95;
+        scale = Math.max(minScale, Math.min(maxScale, scale));
+        
+        setCurrentScale(scale);
+        document.documentElement.style.setProperty('--scale-factor', scale.toString());
 
-        // Set CSS variable for scale
-        document.documentElement.style.setProperty(
-          "--scale-factor",
-          scale.toString()
-        );
-
-        console.log(
-          `Mobile scaling: ${scale} (${window.innerWidth}x${window.innerHeight})`
-        );
+        if (gokartRef.current) {
+          const kartSize = 64;
+          gokartRef.current.updateBoundaries({
+            minX: 0,
+            maxX: gameWidth - kartSize,
+            minY: 0,
+            maxY: gameHeight - kartSize,
+          });
+        }
+        
       } else {
-        // Reset scale for desktop
-        document.documentElement.style.setProperty("--scale-factor", "1");
+        setCurrentScale(1);
+        document.documentElement.style.setProperty('--scale-factor', '1');
+        
+        if (gokartRef.current) {
+          gokartRef.current.updateBoundaries({
+            minX: 0,
+            maxX: 896 - 64,
+            minY: 0,
+            maxY: 600 - 64,
+          });
+        }
       }
     };
 
     checkMobileAndScale();
-    window.addEventListener("resize", checkMobileAndScale);
-    window.addEventListener("orientationchange", () => {
-      setTimeout(checkMobileAndScale, 200); // Increased delay for orientation change
-    });
-
+    
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(checkMobileAndScale, 100);
+    };
+    
+    const handleOrientationChange = () => {
+      setTimeout(checkMobileAndScale, 300);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
     return () => {
-      window.removeEventListener("resize", checkMobileAndScale);
-      window.removeEventListener("orientationchange", checkMobileAndScale);
+      clearTimeout(resizeTimeout);
+      window.removeEventListener('resize', debouncedResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
     };
   }, []);
 
-  // Handle game controls
   const handleControlPress = (
     key: "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight",
     isPressed: boolean
@@ -325,7 +289,6 @@ const GameController: React.FC = () => {
     }
   };
 
-  // Control instructions component
   const ControlInstructions = () => (
     <div className="flex flex-col items-center mb-4 bg-gray-800 bg-opacity-90 p-4 rounded-lg">
       <h3 className="text-white font-bold mb-3 text-lg">
@@ -416,37 +379,21 @@ const GameController: React.FC = () => {
               ref={gokartRef}
               isGameActive={gameState === "playing"}
               onPositionUpdate={handlePositionUpdate}
-              onSpeedUpdate={handleSpeedUpdate}
             />
 
             {/* Finish line */}
             <FinishLine position={{ x: FINISH_LINE.x, y: FINISH_LINE.y }} />
-
-            {/* Show checkpoints if visible */}
-            {checkpointsVisible &&
-              gameState === "playing" &&
-              CHECKPOINTS.map((checkpoint, index) => (
-                <Checkpoint
-                  key={checkpoint.id}
-                  position={{ x: checkpoint.x, y: checkpoint.y }}
-                  isPassed={checkpointsPassedRef.current[index]}
-                  index={index + 1}
-                />
-              ))}
-
-            {/* Debug overlay */}
-            {showDebug && gameState === "playing" && (
-              <DebugOverlay
-                position={lastPositionRef.current}
-                checkpointsPassed={checkpointsPassedRef.current}
-                currentLap={currentLap}
-                canCountLap={canCountLapRef.current}
-                isOnTrack={isOnTrack}
-                currentSpeed={currentSpeed}
-                maxSpeed={maxSpeed}
+            
+            {/* Show checkpoints */}
+            {gameState === 'playing' && CHECKPOINTS.map((checkpoint, index) => (
+              <Checkpoint 
+                key={checkpoint.id}
+                position={{ x: checkpoint.x, y: checkpoint.y }} 
+                isPassed={checkpointsPassedRef.current[index]}
+                index={index + 1}
               />
-            )}
-
+            ))}
+            
             {/* Game overlays */}
             {gameState === "ready" && (
               <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50 p-4">
@@ -468,9 +415,9 @@ const GameController: React.FC = () => {
 
                 <button
                   onClick={startGame}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
-                  Starta Lopp
+                  Starta Lopp - 3€
                 </button>
               </div>
             )}
@@ -508,27 +455,15 @@ const GameController: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Mobile controls - positioned absolutely within game area */}
-          {isMobileView && !isPortrait && gameState === "playing" && (
-            <div className="mobile-controls-wrapper">
-              <div className="mobile-controls-container">
-                <MobileControls onControlPress={handleControlPress} />
-              </div>
-            </div>
-          )}
         </div>
       </div>
-
-      {/* Help text - hide on mobile */}
-      <div className="bg-gray-800 p-2 text-white text-xs hidden md:block flex-shrink-0">
-        <p>
-          Press <kbd className="bg-gray-700 px-1 rounded">D</kbd> to toggle
-          debug overlay. Press <kbd className="bg-gray-700 px-1 rounded">C</kbd>{" "}
-          to toggle checkpoint visibility.
-        </p>
-      </div>
-      {isPortrait && <OrientationOverlay />}
+      
+      {/* Mobile controls section - below game area */}
+      {isMobileView && gameState === 'playing' && (
+        <div className="mobile-controls-section">
+          <MobileControls onControlPress={handleControlPress} />
+        </div>
+      )}
     </div>
   );
 };

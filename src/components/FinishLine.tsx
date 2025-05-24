@@ -1,5 +1,4 @@
 import React from 'react';
-import { Flag } from 'lucide-react';
 
 interface FinishLineProps {
   position: { x: number; y: number };
@@ -14,9 +13,7 @@ const FinishLine: React.FC<FinishLineProps> = ({ position }) => {
         zIndex: 5
       }}
     >
-      {/* Flag icon for better visibility */}
-      <Flag className="text-black absolute -top-8 right-16" size={24} />
-      
+    
      
      
     </div>

@@ -25,14 +25,12 @@ interface Boundaries {
 interface GokartProps {
   isGameActive?: boolean;
   onPositionUpdate?: (position: { x: number; y: number }) => void;
-  onSpeedUpdate?: (speed: number, maxSpeed: number) => void;
 }
 
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
-  getTerrainInfo: () => boolean;
+  updateBoundaries: (boundaries: Boundaries) => void;
 }
-
 
 const START_POSITION: Position = {
   x: 440,
@@ -40,14 +38,12 @@ const START_POSITION: Position = {
   rotation: 270,
 };
 
-// Use forwardRef to expose methods to parent component
 const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
-  const { isGameActive = false, onPositionUpdate, onSpeedUpdate } = props;
+  const { isGameActive = false, onPositionUpdate } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const backgroundCanvasRef = useRef<HTMLCanvasElement>(null);
   const rectangleSize = { width: 64, height: 64 };
 
-  // State variables
   const [position, setPosition] = useState<Position>(START_POSITION);
   const [baseSpeed] = useState<number>(4);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
@@ -72,21 +68,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     minY: 0,
     maxY: 600 - rectangleSize.height,
   });
-
-  const [showTrackDebug, setShowTrackDebug] = useState<boolean>(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 't' || e.key === 'T') {
-        setShowTrackDebug(prev => !prev);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
 
   const captureTrackImage = useCallback(() => {
     const canvas = backgroundCanvasRef.current;
@@ -115,15 +96,13 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       img.onload = () => {
         ctx.drawImage(img, 0, 0, 896, 600);
         URL.revokeObjectURL(svgUrl);
-        console.log('Track image captured successfully for color detection');
       };
       img.onerror = () => {
-        console.warn('Failed to load SVG image for color detection');
         URL.revokeObjectURL(svgUrl);
       };
       img.src = svgUrl;
     } catch (error) {
-      console.warn('Error capturing track image:', error);
+      // Silent error handling
     }
   }, []);
 
@@ -134,7 +113,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   }, [isGameActive, captureTrackImage]);
 
   const isGrassColor = (r: number, g: number, b: number): boolean => {
-    
     const isGreenDominant = g > r * 1.3 && g > b * 1.3;
     
     const grassR = 42, grassG = 146, grassB = 44;
@@ -159,7 +137,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         return { r: pixel[0], g: pixel[1], b: pixel[2] };
       }
     } catch (error) {
-      console.warn("Error sampling color:", error);
+      // Silent error handling
     }
     
     return null;
@@ -171,12 +149,10 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     
     const samplePoints = [
       { x: kartCenterX, y: kartCenterY, weight: 3 },
-
       { x: kartCenterX, y: kartCenterY - 12, weight: 2 },
       { x: kartCenterX + 12, y: kartCenterY, weight: 2 },
       { x: kartCenterX, y: kartCenterY + 12, weight: 2 },
       { x: kartCenterX - 12, y: kartCenterY, weight: 2 }, 
-      
       { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 }, 
       { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },  
       { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },   
@@ -203,71 +179,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     return trackPercentage >= 60;
   };
 
-  const renderTrackDebug = () => {
-    if (!showTrackDebug) return null;
-    
-    const canvas = backgroundCanvasRef.current;
-    if (!canvas) return null;
-    
-    return (
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none z-50 opacity-70">
-        <canvas 
-          width="896"
-          height="600"
-          style={{ 
-            width: '100%', 
-            height: '100%',
-            imageRendering: 'pixelated'
-          }}
-          ref={(debugCanvas) => {
-            if (debugCanvas && canvas) {
-              const debugCtx = debugCanvas.getContext('2d');
-              const ctx = canvas.getContext('2d');
-              if (debugCtx && ctx) {
-                debugCanvas.width = 896;
-                debugCanvas.height = 600;
-                debugCtx.drawImage(canvas, 0, 0);
-                
-                const kartCenterX = position.x + 32;
-                const kartCenterY = position.y + 32;
-                debugCtx.strokeStyle = isOnTrack ? '#00ff00' : '#ff0000';
-                debugCtx.lineWidth = 3;
-                debugCtx.beginPath();
-                debugCtx.arc(kartCenterX, kartCenterY, 20, 0, 2 * Math.PI);
-                debugCtx.stroke();
-                
-                const samplePoints = [
-                  { x: kartCenterX, y: kartCenterY },
-                  { x: kartCenterX, y: kartCenterY - 12 },
-                  { x: kartCenterX + 12, y: kartCenterY },
-                  { x: kartCenterX, y: kartCenterY + 12 },
-                  { x: kartCenterX - 12, y: kartCenterY }
-                ];
-                
-                samplePoints.forEach(point => {
-                  const color = sampleColorAtPoint(point.x, point.y);
-                  if (color) {
-                    const isGrass = isGrassColor(color.r, color.g, color.b);
-                    debugCtx.fillStyle = isGrass ? '#ff0000' : '#00ff00';
-                    debugCtx.beginPath();
-                    debugCtx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
-                    debugCtx.fill();
-                  }
-                });
-              }
-            }
-          }}
-        />
-        <div className="absolute top-0 left-0 bg-black bg-opacity-70 text-white p-2 text-sm">
-          Color-Based Track Detection Debug (Press T to toggle)
-          <div>Kart position: x={Math.round(position.x + 32)}, y={Math.round(position.y + 32)}</div>
-          <div>Terrain: <span className={isOnTrack ? 'text-green-400' : 'text-red-400'}>{isOnTrack ? 'TRACK' : 'GRASS'}</span></div>
-          <div className="text-xs mt-1">Green dots = Track, Red dots = Grass</div>
-        </div>
-      </div>
-    );
-  };
-
   useEffect(() => {
     if (isGameActive) {
       setPosition(START_POSITION);
@@ -289,28 +200,10 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         keyState.current[key as keyof KeyState] = isPressed;
       }
     },
-    getTerrainInfo: () => isOnTrack
+    updateBoundaries: (newBoundaries: Boundaries) => {
+      setBoundaries(newBoundaries);
+    }
   }));
-
-  useEffect(() => {
-    const updateBoundaries = () => {
-      if (containerRef.current) {
-        const containerRect = containerRef.current.getBoundingClientRect();
-        setBoundaries({
-          minX: 0,
-          maxX: containerRect.width - rectangleSize.width,
-          minY: 0,
-          maxY: containerRect.height - rectangleSize.height,
-        });
-      }
-    };
-
-    updateBoundaries();
-    window.addEventListener("resize", updateBoundaries);
-    return () => {
-      window.removeEventListener("resize", updateBoundaries);
-    };
-  }, []);
 
   useEffect(() => {
     const checkFocus = () => {
@@ -408,10 +301,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
           
           newSpeed = Math.min(maxSpeed, Math.max(-maxSpeed * 0.6, newSpeed));
           
-          if (onSpeedUpdate) {
-            onSpeedUpdate(newSpeed, maxSpeed);
-          }
-          
           return newSpeed;
         });
         
@@ -471,13 +360,12 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor, onSpeedUpdate]);
+  }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor]);
 
   const renderTerrainEffects = () => {
     if (!isOnTrack && currentSpeed > 1) {
       return (
         <div className="absolute inset-0 pointer-events-none">
-          {/* Small dust particles when on grass */}
           <div className="absolute" 
             style={{
               left: `${position.x + 32}px`,
@@ -540,39 +428,11 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         rotation={position.rotation}
       />
       
-      {/* Debug track visualization (toggle with T key) */}
-      {renderTrackDebug()}
-      
-      {/* Speed indicator (optional for debugging) */}
-      {isGameActive && (
-        <div 
-          className={`absolute bottom-10 left-2 text-xs px-2 py-1 rounded ${
-            isOnTrack ? 'bg-blue-800' : 'bg-yellow-800'} text-white opacity-60`}
-        >
-          <div className="flex items-center gap-1">
-            <div className="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${isOnTrack ? 'bg-blue-500' : 'bg-yellow-500'}`} 
-                style={{ width: `${(Math.abs(currentSpeed) / baseSpeed) * 100}%` }}
-              />
-            </div>
-            <span>{Math.round(Math.abs(currentSpeed) * 10) / 10}</span>
-          </div>
-        </div>
-      )}
-      
       {/* Focus notification */}
       <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
         {!isFocused && isGameActive &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
-      
-      {/* Debug help text */}
-      {isGameActive && (
-        <div className="absolute bottom-2 right-2 text-xs bg-black bg-opacity-50 p-1 rounded text-white">
-          Press <kbd className="bg-gray-700 px-1 rounded">T</kbd> to toggle color detection debug
-        </div>
-      )}
     </div>
   );
 });
