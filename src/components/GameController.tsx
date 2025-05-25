@@ -22,7 +22,12 @@ type GameState = "ready" | "playing" | "gameover" | "finished" | "submitting-sco
 
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
-  updateBoundaries: (boundaries: { minX: number; maxX: number; minY: number; maxY: number }) => void;
+  updateBoundaries: (boundaries: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  }) => void;
 }
 
 const CHECKPOINTS = [
@@ -42,9 +47,9 @@ const CHECKPOINTS = [
 
 const FINISH_LINE = {
   x: 448,
-  y: 104, 
-  width: 20, 
-  height: 100, 
+  y: 104,
+  width: 20,
+  height: 100,
 };
 
 const TOTAL_LAPS = 3;
@@ -95,71 +100,87 @@ const GameController: React.FC = () => {
     }
   }, [currentTime, bestTime]);
 
-  const handlePositionUpdate = useCallback((position: { x: number; y: number }) => {
-    lastPositionRef.current = position;
-    
-    const isOnFinishLine = 
-      position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
-      position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
-      position.y <= FINISH_LINE.y + FINISH_LINE.height;
-    
-    CHECKPOINTS.forEach((checkpoint, index) => {
-      const distanceToCheckpoint = Math.sqrt(
-        Math.pow(position.x - checkpoint.x, 2) + 
-        Math.pow(position.y - checkpoint.y, 2)
-      );
-      
-      if (distanceToCheckpoint <= checkpoint.radius && !checkpointsPassedRef.current[index]) {
-        checkpointsPassedRef.current[index] = true;
-      }
-    });
-    
-    const allCheckpointsPassed = checkpointsPassedRef.current.every(passed => passed);
-    
-    if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
-      setCurrentLap(prev => {
-        const newLap = prev + 1;
-        
-        if (newLap >= totalLaps) {
-          handleFinish();
-        }
-        return newLap;
-      });
-      
-      checkpointsPassedRef.current = [false, false];
-      canCountLapRef.current = false;
-      
-      setTimeout(() => {
-        canCountLapRef.current = true;
-      }, 1000);
-    }
-  }, [handleFinish, totalLaps]);
+  const handlePositionUpdate = useCallback(
+    (position: { x: number; y: number }) => {
+      lastPositionRef.current = position;
 
-  const startGame = useCallback(() => {
-    // Try to buy ticket (pay fee)
-    TivoliApiService.reportSpin()
-      .then(() => {
-        console.log("Spin (start fee) reported successfully");
-        // If successful, start the game
-        setGameState("playing");
-        setCurrentTime(0);
-        setCurrentLap(0);
-        setGameKey((prevKey) => prevKey + 1); // Force Gokart component to reset
+      const isOnFinishLine =
+        position.x >= FINISH_LINE.x - FINISH_LINE.width / 2 &&
+        position.x <= FINISH_LINE.x + FINISH_LINE.width / 2 &&
+        position.y <= FINISH_LINE.y + FINISH_LINE.height;
+
+      CHECKPOINTS.forEach((checkpoint, index) => {
+        const distanceToCheckpoint = Math.sqrt(
+          Math.pow(position.x - checkpoint.x, 2) +
+            Math.pow(position.y - checkpoint.y, 2)
+        );
+
+        if (
+          distanceToCheckpoint <= checkpoint.radius &&
+          !checkpointsPassedRef.current[index]
+        ) {
+          checkpointsPassedRef.current[index] = true;
+        }
+      });
+
+      const allCheckpointsPassed = checkpointsPassedRef.current.every(
+        (passed) => passed
+      );
+
+      if (isOnFinishLine && allCheckpointsPassed && canCountLapRef.current) {
+        setCurrentLap((prev) => {
+          const newLap = prev + 1;
+
+          if (newLap >= totalLaps) {
+            handleFinish();
+          }
+          return newLap;
+        });
+
         checkpointsPassedRef.current = [false, false];
         canCountLapRef.current = false;
 
         setTimeout(() => {
           canCountLapRef.current = true;
-        }, 1500);
+        }, 1000);
+      }
+    },
+    [handleFinish, totalLaps]
+  );
 
-        if (containerRef.current) containerRef.current.focus();
-      })
-      .catch((error) => {
-        console.error("Failed to start game:", error);
-        alert(
-          "Något gick fel när du skulle starta spelet – försök igen via Tivoli."
-        );
-      });
+  const startGame = useCallback(async (amount: number) => {
+    try {
+      // Försök rapportera spin (startavgift)
+      await TivoliApiService.reportSpin();
+
+      // Ge spelaren ett frimärke
+      await TivoliApiService.reportStamp();
+
+      // Rapportera eventuell vinst (ersätt 'amount' med faktiskt värde)
+
+      await TivoliApiService.reportWinnings(amount);
+
+      console.log("Spin (start fee) reported successfully");
+
+      // Om allt gick bra, starta spelet
+      setGameState("playing");
+      setCurrentTime(0);
+      setCurrentLap(0);
+      setGameKey((prevKey) => prevKey + 1); // Tvinga Gokart att återställas
+      checkpointsPassedRef.current = [false, false];
+      canCountLapRef.current = false;
+
+      setTimeout(() => {
+        canCountLapRef.current = true;
+      }, 1500);
+
+      if (containerRef.current) containerRef.current.focus();
+    } catch (error) {
+      console.error("Failed to start game:", error);
+      alert(
+        "Något gick fel när du skulle starta spelet – försök igen via Tivoli."
+      );
+    }
   }, []);
 
   const handleSubmitScore = useCallback(async (playerName: string) => {
@@ -245,32 +266,36 @@ const GameController: React.FC = () => {
       if (isMobile) {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        
+
         const gameWidth = 896;
         const gameHeight = 600;
-        
+
         // Smaller header height for mobile
         const headerHeight = 40;
         const controlsHeight = 55;
         const verticalPadding = 15;
         const horizontalPadding = 10;
-        
-        const reservedVertical = headerHeight + controlsHeight + verticalPadding;
+
+        const reservedVertical =
+          headerHeight + controlsHeight + verticalPadding;
         const reservedHorizontal = horizontalPadding;
-        
+
         const availableWidth = viewportWidth - reservedHorizontal;
         const availableHeight = viewportHeight - reservedVertical;
-        
+
         const scaleX = availableWidth / gameWidth;
         const scaleY = availableHeight / gameHeight;
         let scale = Math.min(scaleX, scaleY);
-        
+
         const minScale = 0.4;
         const maxScale = 0.95;
         scale = Math.max(minScale, Math.min(maxScale, scale));
-        
+
         setCurrentScale(scale);
-        document.documentElement.style.setProperty('--scale-factor', scale.toString());
+        document.documentElement.style.setProperty(
+          "--scale-factor",
+          scale.toString()
+        );
 
         if (gokartRef.current) {
           const kartSize = 64;
@@ -281,11 +306,10 @@ const GameController: React.FC = () => {
             maxY: gameHeight - kartSize,
           });
         }
-        
       } else {
         setCurrentScale(1);
-        document.documentElement.style.setProperty('--scale-factor', '1');
-        
+        document.documentElement.style.setProperty("--scale-factor", "1");
+
         if (gokartRef.current) {
           gokartRef.current.updateBoundaries({
             minX: 0,
@@ -298,24 +322,24 @@ const GameController: React.FC = () => {
     };
 
     checkMobileAndScale();
-    
+
     let resizeTimeout: ReturnType<typeof setTimeout>;
     const debouncedResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(checkMobileAndScale, 100);
     };
-    
+
     const handleOrientationChange = () => {
       setTimeout(checkMobileAndScale, 300);
     };
-    
-    window.addEventListener('resize', debouncedResize);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    
+
+    window.addEventListener("resize", debouncedResize);
+    window.addEventListener("orientationchange", handleOrientationChange);
+
     return () => {
       clearTimeout(resizeTimeout);
-      window.removeEventListener('resize', debouncedResize);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener("resize", debouncedResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
     };
   }, []);
 
@@ -422,17 +446,18 @@ const GameController: React.FC = () => {
 
             {/* Finish line */}
             <FinishLine position={{ x: FINISH_LINE.x, y: FINISH_LINE.y }} />
-            
+
             {/* Show checkpoints */}
-            {gameState === 'playing' && CHECKPOINTS.map((checkpoint, index) => (
-              <Checkpoint 
-                key={checkpoint.id}
-                position={{ x: checkpoint.x, y: checkpoint.y }} 
-                isPassed={checkpointsPassedRef.current[index]}
-                index={index + 1}
-              />
-            ))}
-            
+            {gameState === "playing" &&
+              CHECKPOINTS.map((checkpoint, index) => (
+                <Checkpoint
+                  key={checkpoint.id}
+                  position={{ x: checkpoint.x, y: checkpoint.y }}
+                  isPassed={checkpointsPassedRef.current[index]}
+                  index={index + 1}
+                />
+              ))}
+
             {/* Game overlays */}
             {gameState === "ready" && (
               <div className="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50 p-4">
@@ -464,10 +489,10 @@ const GameController: React.FC = () => {
 
                   {/* Start Game Button */}
                   <button
-                    onClick={startGame}
+                    onClick={() => startGame(3)}
                     className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                   >
-                    Starta Lopp - 3€
+                    Starta Lopp: €3
                   </button>
                 </div>
               </div>
@@ -507,10 +532,10 @@ const GameController: React.FC = () => {
                   </button>
                   
                   <button
-                    onClick={startGame}
+                    onClick={() => startGame(3)}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
                   >
-                    Kör Igen
+                    Kör igen: €3
                   </button>
                 </div>
               </div>
@@ -518,9 +543,9 @@ const GameController: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile controls section - below game area */}
-      {isMobileView && gameState === 'playing' && (
+      {isMobileView && gameState === "playing" && (
         <div className="mobile-controls-section">
           <MobileControls onControlPress={handleControlPress} />
         </div>
