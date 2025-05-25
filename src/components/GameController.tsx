@@ -74,7 +74,6 @@ const GameController: React.FC = () => {
   const canCountLapRef = useRef<boolean>(false);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
 
-  const token = TivoliApiService.getToken();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Leaderboard states
@@ -158,23 +157,22 @@ const GameController: React.FC = () => {
   );
 
   useEffect(() => {
-    const token = TivoliApiService.getToken();
-    if (token) {
-      setIsAuthenticated(true);
-    }
-
-    // Optionally: handle late arrival via postMessage
-    const listener = () => {
-      const newToken = TivoliApiService.getToken();
-      if (newToken) {
+    const checkToken = () => {
+      const token = localStorage.getItem("token");
+      console.log("[Auth Check] Token in localStorage:", token);
+      if (token) {
         setIsAuthenticated(true);
       }
     };
 
-    window.addEventListener("tivoliTokenReceived", listener);
+    // Check once on load
+    checkToken();
+
+    // Also re-check if token is injected later
+    window.addEventListener("tivoliTokenReceived", checkToken);
 
     return () => {
-      window.removeEventListener("tivoliTokenReceived", listener);
+      window.removeEventListener("tivoliTokenReceived", checkToken);
     };
   }, []);
 
