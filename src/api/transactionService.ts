@@ -16,7 +16,7 @@ async function postTransaction(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": import.meta.env.VITE_API_KEY || "",
+        "X-API-Key": import.meta.env.VITE_API_KEY || process.env.API_KEY  || "",
       },
       body: JSON.stringify(payload),
     });

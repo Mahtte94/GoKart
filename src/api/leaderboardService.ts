@@ -35,7 +35,7 @@ export async function submitScore(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY,
+        "X-API-Key": import.meta.env.VITE_API_KEY || process.env.API_KEY  || "",
       },
       body: JSON.stringify({
         amusement_id: GAME_CONFIG.AMUSEMENT_ID,
