@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
+import { useTivoliAuth } from "../hooks/useTivoliAuth";
 
 type GameState =
   | "ready"
@@ -66,7 +67,6 @@ const GameController: React.FC = () => {
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [currentScale, setCurrentScale] = useState<number>(1);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(TOTAL_LAPS);
@@ -95,23 +95,7 @@ const GameController: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
 
-  useEffect(() => {
-    const token = TivoliApiService.getToken();
-    if (token) {
-      setIsAuthenticated(true);
-    }
-
-    const listener = (event: Event) => {
-      console.log("[GameController] Token received via postMessage");
-      setIsAuthenticated(true);
-    };
-
-    window.addEventListener("tivoliTokenReceived", listener);
-
-    return () => {
-      window.removeEventListener("tivoliTokenReceived", listener);
-    };
-  }, []);
+  const { isAuthenticated } = useTivoliAuth();
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
