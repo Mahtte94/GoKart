@@ -75,7 +75,7 @@ const GameController: React.FC = () => {
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
 
   const token = TivoliApiService.getToken();
-  const isAuthenticated = Boolean(token);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Leaderboard states
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
@@ -156,6 +156,27 @@ const GameController: React.FC = () => {
     },
     [handleFinish, totalLaps]
   );
+
+  useEffect(() => {
+    const token = TivoliApiService.getToken();
+    if (token) {
+      setIsAuthenticated(true);
+    }
+
+    // Optionally: handle late arrival via postMessage
+    const listener = () => {
+      const newToken = TivoliApiService.getToken();
+      if (newToken) {
+        setIsAuthenticated(true);
+      }
+    };
+
+    window.addEventListener("tivoliTokenReceived", listener);
+
+    return () => {
+      window.removeEventListener("tivoliTokenReceived", listener);
+    };
+  }, []);
 
   const startGame = useCallback(async (amount: number) => {
     try {
@@ -516,7 +537,7 @@ const GameController: React.FC = () => {
                   >
                     {isAuthenticated
                       ? "Starta Lopp: €3"
-                      : "Starta spelet från Tivoli"}
+                      : "Starta spelet via Tivoli"}
                   </button>
                 </div>
               </div>
