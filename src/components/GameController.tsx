@@ -101,109 +101,95 @@ const GameController: React.FC = () => {
 
   const [tivoliAuthStatus, setTivoliAuthStatus] = useState<string | null>(null);
 
-  // Improved authentication handling with proper token update detection
-  useEffect(() => {
-    console.log("=== AUTH CHECK START ===");
-    console.log("Is in iframe:", window.parent !== window);
-    console.log("Current URL:", window.location.href);
-    console.log("Token in localStorage:", localStorage.getItem("token"));
+// Single useEffect for authentication handling
+useEffect(() => {
+  const checkAuthentication = () => {
+    // Check URL parameters for token first
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
 
-    const checkAuthentication = () => {
-      // Check URL parameters for token first
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get("token");
+    if (tokenFromUrl) {
+      // Store token in localStorage
+      localStorage.setItem("token", tokenFromUrl);
 
-      if (tokenFromUrl) {
-        // Store token in localStorage
-        localStorage.setItem("token", tokenFromUrl);
-        
-        // Validate token
-        const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
-        if (decoded) {
-          // Check if token is expired
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (decoded.exp && decoded.exp < currentTime) {
-            setTivoliAuthStatus("Token expired. Please login again.");
-            localStorage.removeItem("token");
-            setIsAuthenticated(false);
-          } else {
-            setTivoliAuthStatus("Authenticated with Tivoli (URL)");
-            setIsAuthenticated(true);
-          }
-        } else {
-          setTivoliAuthStatus("Invalid token from URL");
-          setIsAuthenticated(false);
-        }
-        return;
-      }
-
-      // Check localStorage for existing token
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        // Skip validation for test token
-        if (storedToken === "test-token-for-development") {
-          setTivoliAuthStatus("Test mode enabled");
-          setIsAuthenticated(true);
-          return;
-        }
-
-        const decoded = decodeJwt<MyTokenPayload>(storedToken);
-        if (decoded) {
-          // Check if token is expired
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (decoded.exp && decoded.exp < currentTime) {
-            setTivoliAuthStatus("Token expired. Please login again.");
-            localStorage.removeItem("token");
-            setIsAuthenticated(false);
-          } else {
-            setTivoliAuthStatus("Authenticated with Tivoli (stored)");
-            setIsAuthenticated(true);
-          }
-        } else {
-          setTivoliAuthStatus("Invalid stored token");
+      // Validate token
+      const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
+      if (decoded) {
+        // Check if token is expired
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < currentTime) {
+          setTivoliAuthStatus("Token expired. Please login again.");
           localStorage.removeItem("token");
           setIsAuthenticated(false);
+        } else {
+          setTivoliAuthStatus("Authenticated with Tivoli (URL)");
+          setIsAuthenticated(true);
         }
+      } else {
+        setTivoliAuthStatus("Invalid token from URL");
+        setIsAuthenticated(false);
+      }
+      return;
+    }
+
+    // Check localStorage for existing token
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      // Skip validation for test token
+      if (storedToken === "test-token-for-development") {
+        setTivoliAuthStatus("Test mode enabled");
+        setIsAuthenticated(true);
         return;
       }
 
-      // No token found
-      const isInIframe = window.parent !== window;
-      if (process.env.NODE_ENV === "development" && !isInIframe) {
-        setTivoliAuthStatus("Development - awaiting authentication");
-        setIsAuthenticated(false);
-      } else if (isInIframe) {
-        setTivoliAuthStatus("Waiting for token from Tivoli...");
-        setIsAuthenticated(false);
-        setWaitingForToken(true);
+      const decoded = decodeJwt<MyTokenPayload>(storedToken);
+      if (decoded) {
+        // Check if token is expired
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < currentTime) {
+          setTivoliAuthStatus("Token expired. Please login again.");
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+        } else {
+          setTivoliAuthStatus("Authenticated with Tivoli (stored)");
+          setIsAuthenticated(true);
+        }
       } else {
-        setTivoliAuthStatus("Not launched from Tivoli");
+        setTivoliAuthStatus("Invalid stored token");
+        localStorage.removeItem("token");
         setIsAuthenticated(false);
       }
-    };
+      return;
+    }
 
-    checkAuthentication();
+    // No token found
+    const isInIframe = window.parent !== window;
+    if (process.env.NODE_ENV === "development" && !isInIframe) {
+      setTivoliAuthStatus("Development - awaiting authentication");
+      setIsAuthenticated(false);
+    } else if (isInIframe) {
+      setTivoliAuthStatus("Waiting for token from Tivoli...");
+      setIsAuthenticated(false);
+    } else {
+      setTivoliAuthStatus("Not launched from Tivoli");
+      setIsAuthenticated(false);
+    }
+  };
 
-    // Listen for token updates from JwtListener
-    const handleTokenUpdate = (event: Event | CustomEvent) => {
-      console.log("Token update event received:", event.type);
-      console.log("Current token in localStorage:", localStorage.getItem("token"));
-      checkAuthentication();
-    };
+  checkAuthentication();
+}, []);
 
-    // Listen for both custom event and storage events
-    window.addEventListener("token_received", handleTokenUpdate);
-    window.addEventListener("storage", handleTokenUpdate);
-    
-    // Also listen for custom event that might be dispatched
-    window.addEventListener("tivoliTokenReceived", handleTokenUpdate);
-
-    return () => {
-      window.removeEventListener("token_received", handleTokenUpdate);
-      window.removeEventListener("storage", handleTokenUpdate);
-      window.removeEventListener("tivoliTokenReceived", handleTokenUpdate);
-    };
-  }, []);
+// Handler for when JwtListener receives a token
+const handleTokenReceived = (token: string) => {
+  const decoded = decodeJwt<MyTokenPayload>(token);
+  if (decoded) {
+    setIsAuthenticated(true);
+    setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
+  } else {
+    setTivoliAuthStatus("Invalid token from postMessage");
+    setIsAuthenticated(false);
+  }
+};
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -265,32 +251,7 @@ const GameController: React.FC = () => {
     [handleFinish, totalLaps]
   );
 
-  const handleTokenReceived = (token: string) => {
-    console.log("=== handleTokenReceived called ===");
-    console.log("Token received:", token.substring(0, 20) + "...");
-    console.log("Current waitingForToken state:", waitingForToken);
-  
-    
-    // Store in localStorage
-    localStorage.setItem("token", token);
-    
-    // Validate and update authentication state
-    const decoded = decodeJwt<MyTokenPayload>(token);
-    if (decoded) {
-      const currentTime = Math.floor(Date.now() / 1000);
-      if (decoded.exp && decoded.exp < currentTime) {
-        setTivoliAuthStatus("Token expired. Please login again.");
-        setIsAuthenticated(false);
-      } else {
-        setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
-        setIsAuthenticated(true);
-        setWaitingForToken(false);
-      }
-    } else {
-      setTivoliAuthStatus("Invalid token from postMessage");
-      setIsAuthenticated(false);
-    }
-  };
+ 
 
   const startGame = useCallback(async (amount: number) => {
     try {
@@ -545,6 +506,8 @@ const GameController: React.FC = () => {
 
   return (
     <div ref={containerRef} className="game-wrapper relative" tabIndex={-1}>
+      {/* JWT Listener for iframe communication */}
+      <JwtListener onTokenReceived={handleTokenReceived} />
       {/* Orientation overlay for portrait mode */}
       {isPortrait && (
         <div className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex flex-col justify-center items-center text-center px-6">
