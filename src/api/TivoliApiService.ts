@@ -1,4 +1,3 @@
-// src/api/TivoliApiService.ts
 import { buyTicket, reportPayout, awardStamp } from "./transactionService";
 import {
   submitScore,
@@ -7,32 +6,37 @@ import {
 } from "./leaderboardService";
 
 class TivoliApiService {
-  // Expanded development mode detection
   static isDevelopment =
     process.env.NODE_ENV === "development" ||
     window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1" ||
-    window.location.hostname.includes("yrgobanken.vip") || // Add your domain
-    window.location.hostname.includes("tivoli.yrgobanken.vip") || // Add subdomain
-    window.location.hostname.includes("vercel.app");
+    window.location.hostname === "127.0.0.1";
 
-  /**
-   * Hämtar token från localStorage
-   */
+  static isEmbeddedGame = 
+    window.location.hostname.includes("vercel.app") ||
+    window.location.hostname.includes("yrgobanken.vip") ||
+    window.location.hostname.includes("tivoli.yrgobanken.vip");
+
   static getToken(): string | null {
-    return localStorage.getItem("token");
+    let token = localStorage.getItem("token");
+    
+    if (!token) {
+      const urlParams = new URLSearchParams(window.location.search);
+      token = urlParams.get('token');
+      if (token) {
+        localStorage.setItem("token", token);
+      }
+    }
+    
+    return token;
   }
 
-  /**
-   * Rapportera att spelaren har snurrat (drar en "biljett")
-   */
   static async reportSpin(): Promise<void> {
     const token = this.getToken();
 
     if (!token) {
-      if (this.isDevelopment) {
+      if (this.isDevelopment || this.isEmbeddedGame) {
         console.warn(
-          "[TivoliApiService] No token found – simulating spin transaction (development mode)"
+          "[TivoliApiService] No token found – simulating spin transaction"
         );
         return Promise.resolve();
       } else {
@@ -46,16 +50,13 @@ class TivoliApiService {
     return buyTicket(token);
   }
 
-  /**
-   * Rapportera att spelaren har vunnit (ger pengar)
-   */
   static async reportWinnings(amount: number): Promise<void> {
     const token = this.getToken();
 
     if (!token) {
-      if (this.isDevelopment) {
+      if (this.isDevelopment || this.isEmbeddedGame) {
         console.warn(
-          "[TivoliApiService] No token found – simulating winnings transaction (development mode)"
+          "[TivoliApiService] No token found – simulating winnings transaction"
         );
         return Promise.resolve();
       } else {
@@ -69,16 +70,13 @@ class TivoliApiService {
     return reportPayout(token, amount);
   }
 
-  /**
-   * Rapportera att spelaren får en stämpel (om det behövs separat från vinst)
-   */
   static async reportStamp(): Promise<void> {
     const token = this.getToken();
 
     if (!token) {
-      if (this.isDevelopment) {
+      if (this.isDevelopment || this.isEmbeddedGame) {
         console.warn(
-          "[TivoliApiService] No token found – simulating stamp transaction (development mode)"
+          "[TivoliApiService] No token found – simulating stamp transaction"
         );
         return Promise.resolve();
       } else {
@@ -92,82 +90,74 @@ class TivoliApiService {
     return awardStamp(token);
   }
 
-  /**
-   * Skicka in spelresultat till leaderboard
-   */
   static async submitScore(
     playerName: string,
     completionTime: number
   ): Promise<{ rank: number; total_players: number }> {
     const token = this.getToken();
 
-    if (!token) {
-      if (this.isDevelopment) {
-        console.warn(
-          "[TivoliApiService] No token found – returning mock leaderboard data for development"
-        );
-        // Return mock data for development
-        return {
-          rank: Math.floor(Math.random() * 10) + 1,
-          total_players: Math.floor(Math.random() * 50) + 10
-        };
-      } else {
-        throw new Error(
-          "Authentication required. Please launch this game from Tivoli."
-        );
+    if (token) {
+      try {
+        console.log("[TivoliApiService] Submitting score with real token");
+        return await submitScore(token, playerName, completionTime);
+      } catch (error) {
+        console.error("Real API failed, falling back to mock:", error);
       }
     }
 
-    console.log("[TivoliApiService] Submitting score:", {
-      playerName,
-      completionTime,
-    });
-    return submitScore(token, playerName, completionTime);
+    if (this.isDevelopment) {
+      console.warn("[TivoliApiService] Using mock score submission for development");
+      return {
+        rank: Math.floor(Math.random() * 10) + 1,
+        total_players: Math.floor(Math.random() * 50) + 10
+      };
+    }
+
+    throw new Error("Authentication required. Please launch this game from Tivoli.");
   }
 
-  /**
-   * Hämta leaderboard
-   */
   static async getLeaderboard(
     limit: number = 50
   ): Promise<LeaderboardResponse> {
     const token = this.getToken();
 
-    if (!token) {
-      if (this.isDevelopment) {
-        console.warn(
-          "[TivoliApiService] No token found – returning mock leaderboard for development"
-        );
-        // Return mock leaderboard data
-        const mockLeaderboard = Array.from({ length: Math.min(limit, 10) }, (_, i) => ({
-          id: i + 1,
-          player_name: `Player ${i + 1}`,
-          completion_time: 60 + Math.floor(Math.random() * 120), // Random times between 1-3 minutes
-          completed_at: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(), // Random date within last week
-          rank: i + 1
-        }));
-
-        return {
-          leaderboard: mockLeaderboard,
-          total_players: mockLeaderboard.length,
-          player_rank: undefined
-        };
-      } else {
-        throw new Error(
-          "Authentication required. Please launch this game from Tivoli."
-        );
+    if (token) {
+      try {
+        console.log("[TivoliApiService] Fetching real leaderboard");
+        return await getLeaderboard(token, limit);
+      } catch (error) {
+        console.error("Real leaderboard API failed:", error);
       }
     }
 
-    console.log("[TivoliApiService] Fetching leaderboard with real token");
-    return getLeaderboard(token, limit);
+    if (this.isDevelopment) {
+      console.warn("[TivoliApiService] Using mock leaderboard for development");
+      
+      const mockTimes = [65, 73, 89, 92, 105, 118, 134, 157, 161, 177];
+      const mockLeaderboard = mockTimes.slice(0, Math.min(limit, 10)).map((time, i) => ({
+        id: i + 1,
+        player_name: `Player ${i + 1}`,
+        completion_time: time,
+        completed_at: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
+        rank: i + 1
+      }));
+
+      return {
+        leaderboard: mockLeaderboard,
+        total_players: mockLeaderboard.length,
+        player_rank: undefined
+      };
+    }
+
+    return {
+      leaderboard: [],
+      total_players: 0,
+      player_rank: undefined
+    };
   }
 
-  /**
-   * (Valfritt) Hämta användarens saldo – placeholder just nu
-   */
   static async getUserBalance(): Promise<number> {
-    return 100; // Placeholder tills du integrerar riktig API-funktion
+    return 100;
   }
 }
 
