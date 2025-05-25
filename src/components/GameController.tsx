@@ -18,7 +18,12 @@ import {
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
 
-type GameState = "ready" | "playing" | "gameover" | "finished" | "submitting-score";
+type GameState =
+  | "ready"
+  | "playing"
+  | "gameover"
+  | "finished"
+  | "submitting-score";
 
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
@@ -71,7 +76,8 @@ const GameController: React.FC = () => {
 
   // Leaderboard states
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
-  const [showPlayerNameModal, setShowPlayerNameModal] = useState<boolean>(false);
+  const [showPlayerNameModal, setShowPlayerNameModal] =
+    useState<boolean>(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [playerRank, setPlayerRank] = useState<number | undefined>(undefined);
 
@@ -153,13 +159,6 @@ const GameController: React.FC = () => {
       // Försök rapportera spin (startavgift)
       await TivoliApiService.reportSpin();
 
-      // Ge spelaren ett frimärke
-      await TivoliApiService.reportStamp();
-
-      // Rapportera eventuell vinst (ersätt 'amount' med faktiskt värde)
-
-      await TivoliApiService.reportWinnings(amount);
-
       console.log("Spin (start fee) reported successfully");
 
       // Om allt gick bra, starta spelet
@@ -183,21 +182,29 @@ const GameController: React.FC = () => {
     }
   }, []);
 
-  const handleSubmitScore = useCallback(async (playerName: string) => {
-    setIsSubmittingScore(true);
-    try {
-      const result = await TivoliApiService.submitScore(playerName, currentTime);
-      setPlayerRank(result.rank);
-      setShowPlayerNameModal(false);
-      setShowLeaderboard(true);
-      console.log(`Score submitted! Player rank: ${result.rank} out of ${result.total_players}`);
-    } catch (error) {
-      console.error("Failed to submit score:", error);
-      alert("Kunde inte spara ditt resultat. Försök igen.");
-    } finally {
-      setIsSubmittingScore(false);
-    }
-  }, [currentTime]);
+  const handleSubmitScore = useCallback(
+    async (playerName: string) => {
+      setIsSubmittingScore(true);
+      try {
+        const result = await TivoliApiService.submitScore(
+          playerName,
+          currentTime
+        );
+        setPlayerRank(result.rank);
+        setShowPlayerNameModal(false);
+        setShowLeaderboard(true);
+        console.log(
+          `Score submitted! Player rank: ${result.rank} out of ${result.total_players}`
+        );
+      } catch (error) {
+        console.error("Failed to submit score:", error);
+        alert("Kunde inte spara ditt resultat. Försök igen.");
+      } finally {
+        setIsSubmittingScore(false);
+      }
+    },
+    [currentTime]
+  );
 
   const handleSkipScoreSubmission = useCallback(() => {
     setShowPlayerNameModal(false);
@@ -530,7 +537,7 @@ const GameController: React.FC = () => {
                     <Trophy className="w-5 h-5 mr-2" />
                     Se Topplista
                   </button>
-                  
+
                   <button
                     onClick={() => startGame(3)}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
