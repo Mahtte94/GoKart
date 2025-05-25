@@ -23,12 +23,7 @@ class TivoliApiService {
   static debugAuthentication(): void {
     console.log("=== TIVOLI AUTHENTICATION DEBUG ===");
 
-    console.log("Current URL:", window.location.href);
-    console.log("Hostname:", window.location.hostname);
-    console.log(
-      "All URL params:",
-      Object.fromEntries(new URLSearchParams(window.location.search))
-    );
+   
 
     console.log("localStorage token:", localStorage.getItem("token"));
     console.log("sessionStorage token:", sessionStorage.getItem("token"));
