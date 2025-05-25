@@ -3,7 +3,7 @@ import {
   submitScore,
   getLeaderboard,
   LeaderboardResponse,
-} from "./leaderboardService";
+} from "./LeaderboardService";
 
 class TivoliApiService {
   // Definierar om vi kör i utvecklingsläge (localhost eller liknande)
