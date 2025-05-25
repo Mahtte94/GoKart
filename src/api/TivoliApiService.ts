@@ -4,7 +4,7 @@ import {
   submitScore,
   getLeaderboard,
   LeaderboardResponse,
-} from "./LeaderboardService";
+} from "./leaderboardService";
 
 class TivoliApiService {
   // Expanded development mode detection
