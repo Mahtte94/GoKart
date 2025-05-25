@@ -103,6 +103,11 @@ const GameController: React.FC = () => {
 
   // Improved authentication handling with proper token update detection
   useEffect(() => {
+    console.log("=== AUTH CHECK START ===");
+    console.log("Is in iframe:", window.parent !== window);
+    console.log("Current URL:", window.location.href);
+    console.log("Token in localStorage:", localStorage.getItem("token"));
+
     const checkAuthentication = () => {
       // Check URL parameters for token first
       const urlParams = new URLSearchParams(window.location.search);
@@ -180,8 +185,9 @@ const GameController: React.FC = () => {
     checkAuthentication();
 
     // Listen for token updates from JwtListener
-    const handleTokenUpdate = () => {
-      console.log("Token update detected, re-checking authentication");
+    const handleTokenUpdate = (event: Event | CustomEvent) => {
+      console.log("Token update event received:", event.type);
+      console.log("Current token in localStorage:", localStorage.getItem("token"));
       checkAuthentication();
     };
 
@@ -260,7 +266,10 @@ const GameController: React.FC = () => {
   );
 
   const handleTokenReceived = (token: string) => {
-    console.log("Token received in GameController:", token.substring(0, 20) + "...");
+    console.log("=== handleTokenReceived called ===");
+    console.log("Token received:", token.substring(0, 20) + "...");
+    console.log("Current waitingForToken state:", waitingForToken);
+  
     
     // Store in localStorage
     localStorage.setItem("token", token);
@@ -649,6 +658,54 @@ const GameController: React.FC = () => {
                         : "Starta spelet via Tivoli"}
                   </button>
                 </div>
+
+                // Add this debug section right after your Start Game button in GameController.tsx:
+
+{/* Debug section - REMOVE IN PRODUCTION */}
+{(process.env.NODE_ENV === "development" || waitingForToken) && (
+  <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+    <p className="text-xs text-gray-400 mb-2">
+      Debug Info:
+    </p>
+    <p className="text-xs text-gray-300">
+      In iframe: {(window.parent !== window).toString()}<br/>
+      Waiting for token: {waitingForToken.toString()}<br/>
+      Authenticated: {isAuthenticated.toString()}<br/>
+      Token exists: {(!!localStorage.getItem("token")).toString()}<br/>
+      Status: {tivoliAuthStatus}
+    </p>
+    
+    <button
+      onClick={() => {
+        // Force test authentication
+        const testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImV4cCI6OTk5OTk5OTk5OX0.test";
+        localStorage.setItem("token", testToken);
+        setIsAuthenticated(true);
+        setWaitingForToken(false);
+        setTivoliAuthStatus("Test authentication enabled");
+        
+        // Trigger storage event
+        window.dispatchEvent(new Event("storage"));
+      }}
+      className="mt-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs"
+    >
+      Force Test Authentication
+    </button>
+    
+    <button
+      onClick={() => {
+        // Clear token and reset
+        localStorage.removeItem("token");
+        setIsAuthenticated(false);
+        setWaitingForToken(true);
+        window.location.reload();
+      }}
+      className="mt-2 ml-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
+    >
+      Clear & Reset
+    </button>
+  </div>
+)}
                 
                 {/* Debug status - remove in production */}
                 {process.env.NODE_ENV === "development" && (
