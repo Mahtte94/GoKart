@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+  useCallback,
+} from "react";
 import GoKartSprite from "./GoKartSprite";
 import RaceTrack from "../assets/RaceTrack";
 
@@ -45,7 +52,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const rectangleSize = { width: 64, height: 64 };
 
   const [position, setPosition] = useState<Position>(START_POSITION);
-  const [baseSpeed] = useState<number>(4);
+  const [baseSpeed] = useState<number>(6);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   const [rotation, setRotation] = useState<number>(START_POSITION.rotation);
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
@@ -54,9 +61,9 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const [deceleration] = useState<number>(0.08);
   const [rotationSpeed] = useState<number>(3);
   const [isFocused, setIsFocused] = useState<boolean>(false);
-  
+
   const [shakeFactor, setShakeFactor] = useState<number>(0);
-  
+
   const GRASS_SPEED_FACTOR = 0.3;
   const GRASS_ROTATION_FACTOR = 0.7;
   const GRASS_DRAG = 1.2;
@@ -72,16 +79,16 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const captureTrackImage = useCallback(() => {
     const canvas = backgroundCanvasRef.current;
     const container = containerRef.current;
-    
+
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     canvas.width = 896;
     canvas.height = 600;
 
-    const svgElement = container.querySelector('svg');
+    const svgElement = container.querySelector("svg");
     if (!svgElement) {
       setTimeout(captureTrackImage, 200);
       return;
@@ -89,7 +96,9 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
     try {
       const svgData = new XMLSerializer().serializeToString(svgElement);
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const svgBlob = new Blob([svgData], {
+        type: "image/svg+xml;charset=utf-8",
+      });
       const svgUrl = URL.createObjectURL(svgBlob);
 
       const img = new Image();
@@ -114,23 +123,28 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
 
   const isGrassColor = (r: number, g: number, b: number): boolean => {
     const isGreenDominant = g > r * 1.3 && g > b * 1.3;
-    
-    const grassR = 42, grassG = 146, grassB = 44;
+
+    const grassR = 42,
+      grassG = 146,
+      grassB = 44;
     const colorDistance = Math.sqrt(
-      Math.pow(r - grassR, 2) + 
-      Math.pow(g - grassG, 2) + 
-      Math.pow(b - grassB, 2)
+      Math.pow(r - grassR, 2) +
+        Math.pow(g - grassG, 2) +
+        Math.pow(b - grassB, 2)
     );
-    
+
     return isGreenDominant || colorDistance < 50;
   };
 
-  const sampleColorAtPoint = (x: number, y: number): { r: number, g: number, b: number } | null => {
+  const sampleColorAtPoint = (
+    x: number,
+    y: number
+  ): { r: number; g: number; b: number } | null => {
     const canvas = backgroundCanvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    
+    const ctx = canvas?.getContext("2d");
+
     if (!ctx || !canvas) return null;
-    
+
     try {
       if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
         const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
@@ -139,43 +153,44 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     } catch (error) {
       // Silent error handling
     }
-    
+
     return null;
   };
 
   const isPositionOnTrack = (x: number, y: number): boolean => {
     const kartCenterX = Math.floor(x + rectangleSize.width / 2);
     const kartCenterY = Math.floor(y + rectangleSize.height / 2);
-    
+
     const samplePoints = [
       { x: kartCenterX, y: kartCenterY, weight: 3 },
       { x: kartCenterX, y: kartCenterY - 12, weight: 2 },
       { x: kartCenterX + 12, y: kartCenterY, weight: 2 },
       { x: kartCenterX, y: kartCenterY + 12, weight: 2 },
-      { x: kartCenterX - 12, y: kartCenterY, weight: 2 }, 
-      { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 }, 
-      { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },  
-      { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },   
-      { x: kartCenterX - 8, y: kartCenterY - 8, weight: 1 }    
+      { x: kartCenterX - 12, y: kartCenterY, weight: 2 },
+      { x: kartCenterX + 8, y: kartCenterY - 8, weight: 1 },
+      { x: kartCenterX + 8, y: kartCenterY + 8, weight: 1 },
+      { x: kartCenterX - 8, y: kartCenterY + 8, weight: 1 },
+      { x: kartCenterX - 8, y: kartCenterY - 8, weight: 1 },
     ];
-    
+
     let totalWeight = 0;
     let trackWeight = 0;
-    
+
     for (const point of samplePoints) {
       const color = sampleColorAtPoint(point.x, point.y);
-      
+
       if (color) {
         totalWeight += point.weight;
-        
+
         if (!isGrassColor(color.r, color.g, color.b)) {
           trackWeight += point.weight;
         }
       }
     }
-    
-    const trackPercentage = totalWeight > 0 ? (trackWeight / totalWeight) * 100 : 50;
-    
+
+    const trackPercentage =
+      totalWeight > 0 ? (trackWeight / totalWeight) * 100 : 50;
+
     return trackPercentage >= 60;
   };
 
@@ -202,7 +217,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
     },
     updateBoundaries: (newBoundaries: Boundaries) => {
       setBoundaries(newBoundaries);
-    }
+    },
   }));
 
   useEffect(() => {
@@ -260,29 +275,29 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       if ((isFocused || isGameActive) && isGameActive) {
         setRotation((prevRotation) => {
           let newRotation = prevRotation;
-          
-          const effectiveRotationSpeed = isOnTrack 
-            ? rotationSpeed 
+
+          const effectiveRotationSpeed = isOnTrack
+            ? rotationSpeed
             : rotationSpeed * GRASS_ROTATION_FACTOR;
-          
+
           if (keyState.current.ArrowLeft) {
             newRotation = newRotation - effectiveRotationSpeed;
           }
           if (keyState.current.ArrowRight) {
             newRotation = newRotation + effectiveRotationSpeed;
           }
-          
+
           return newRotation;
         });
-        
+
         setCurrentSpeed((prevSpeed) => {
           let newSpeed = prevSpeed;
-          
+
           const terrainSpeedFactor = isOnTrack ? 1 : GRASS_SPEED_FACTOR;
           const terrainDragFactor = isOnTrack ? 1 : GRASS_DRAG;
-          
+
           setMaxSpeed(baseSpeed * terrainSpeedFactor);
-          
+
           if (keyState.current.ArrowUp) {
             newSpeed += acceleration * terrainSpeedFactor;
           } else if (keyState.current.ArrowDown) {
@@ -293,40 +308,46 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
             } else if (newSpeed < 0) {
               newSpeed += deceleration * terrainDragFactor;
             }
-            
+
             if (Math.abs(newSpeed) < 0.1) {
               newSpeed = 0;
             }
           }
-          
+
           newSpeed = Math.min(maxSpeed, Math.max(-maxSpeed * 0.6, newSpeed));
-          
+
           return newSpeed;
         });
-        
+
         setPosition((prev) => {
           const radians = (rotation * Math.PI) / 180;
-          
+
           const deltaX = Math.sin(radians) * currentSpeed;
           const deltaY = -Math.cos(radians) * currentSpeed;
-          
-          let newX = prev.x + deltaX + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
-          let newY = prev.y + deltaY + (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
-          
+
+          let newX =
+            prev.x +
+            deltaX +
+            (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
+          let newY =
+            prev.y +
+            deltaY +
+            (isOnTrack ? 0 : (Math.random() - 0.5) * shakeFactor);
+
           newX = Math.max(boundaries.minX, Math.min(boundaries.maxX, newX));
           newY = Math.max(boundaries.minY, Math.min(boundaries.maxY, newY));
-          
+
           const onTrack = isPositionOnTrack(newX, newY);
           setIsOnTrack(onTrack);
-          
+
           if (onPositionUpdate) {
             onPositionUpdate({ x: newX, y: newY });
           }
-          
+
           return {
             x: newX,
             y: newY,
-            rotation: rotation
+            rotation: rotation,
           };
         });
       }
@@ -360,20 +381,32 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       window.removeEventListener("keyup", handleKeyUp);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [rotation, currentSpeed, maxSpeed, isFocused, boundaries, isGameActive, onPositionUpdate, isOnTrack, shakeFactor]);
+  }, [
+    rotation,
+    currentSpeed,
+    maxSpeed,
+    isFocused,
+    boundaries,
+    isGameActive,
+    onPositionUpdate,
+    isOnTrack,
+    shakeFactor,
+  ]);
 
   const renderTerrainEffects = () => {
     if (!isOnTrack && currentSpeed > 1) {
       return (
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute" 
+          <div
+            className="absolute"
             style={{
               left: `${position.x + 32}px`,
               top: `${position.y + 32}px`,
-              zIndex: 10
-            }}>
+              zIndex: 10,
+            }}
+          >
             {Array.from({ length: 3 }).map((_, i) => (
-              <div 
+              <div
                 key={i}
                 className="absolute bg-yellow-100 rounded-full opacity-40 animate-ping"
                 style={{
@@ -382,7 +415,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
                   left: `${(Math.random() - 0.5) * 30}px`,
                   top: `${(Math.random() - 0.5) * 30}px`,
                   animationDuration: `${0.5 + Math.random() * 0.5}s`,
-                  animationDelay: `${Math.random() * 0.2}s`
+                  animationDelay: `${Math.random() * 0.2}s`,
                 }}
               />
             ))}
@@ -404,7 +437,7 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
       ref={containerRef}
       className="relative w-full h-full bg-white border border-gray-300 rounded-lg overflow-hidden"
       tabIndex={0}
-      style={{ outline: "none", width: "896px", height: "600px" }} 
+      style={{ outline: "none", width: "896px", height: "600px" }}
       onClick={handleContainerClick}
     >
       {/* Hidden canvas for color sampling */}
@@ -427,16 +460,17 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         y={position.y}
         rotation={position.rotation}
       />
-      
+
       {/* Focus notification */}
       <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
-        {!isFocused && isGameActive &&
+        {!isFocused &&
+          isGameActive &&
           "Klicka på spelplanen för att aktivera tangentbordskontroller"}
       </div>
     </div>
   );
 });
 
-Gokart.displayName = 'Gokart';
+Gokart.displayName = "Gokart";
 
 export default Gokart;
