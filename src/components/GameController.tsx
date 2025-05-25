@@ -4,6 +4,8 @@ import Timer from "./Timer";
 import LapIndicator from "./LapIndicator";
 import FinishLine from "./FinishLine";
 import Checkpoint from "./Checkpoint";
+import Leaderboard from "./Leaderboard";
+import PlayerNameModal from "./PlayernameModal";
 import {
   ArrowUp,
   ArrowDown,
@@ -11,11 +13,12 @@ import {
   ArrowRight,
   Flag,
   CheckCircle,
+  Trophy,
 } from "lucide-react";
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
 
-type GameState = "ready" | "playing" | "gameover" | "finished";
+type GameState = "ready" | "playing" | "gameover" | "finished" | "submitting-score";
 
 interface GokartRefHandle {
   handleControlPress: (key: string, isPressed: boolean) => void;
@@ -60,6 +63,12 @@ const GameController: React.FC = () => {
   const checkpointsPassedRef = useRef<boolean[]>([false, false]);
   const canCountLapRef = useRef<boolean>(false);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
+
+  // Leaderboard states
+  const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
+  const [showPlayerNameModal, setShowPlayerNameModal] = useState<boolean>(false);
+  const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
+  const [playerRank, setPlayerRank] = useState<number | undefined>(undefined);
 
   // Kart physics data
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
@@ -152,6 +161,37 @@ const GameController: React.FC = () => {
         );
       });
   }, []);
+
+  const handleSubmitScore = useCallback(async (playerName: string) => {
+    setIsSubmittingScore(true);
+    try {
+      const result = await TivoliApiService.submitScore(playerName, currentTime);
+      setPlayerRank(result.rank);
+      setShowPlayerNameModal(false);
+      setShowLeaderboard(true);
+      console.log(`Score submitted! Player rank: ${result.rank} out of ${result.total_players}`);
+    } catch (error) {
+      console.error("Failed to submit score:", error);
+      alert("Kunde inte spara ditt resultat. Försök igen.");
+    } finally {
+      setIsSubmittingScore(false);
+    }
+  }, [currentTime]);
+
+  const handleSkipScoreSubmission = useCallback(() => {
+    setShowPlayerNameModal(false);
+    setShowLeaderboard(true);
+  }, []);
+
+  // Show player name modal when game finishes
+  useEffect(() => {
+    if (gameState === "finished") {
+      // Small delay to let the finish animation play
+      setTimeout(() => {
+        setShowPlayerNameModal(true);
+      }, 1500);
+    }
+  }, [gameState]);
 
   const formatTime = useCallback((seconds: number | null): string => {
     if (seconds === null) return "--:--";
@@ -412,12 +452,24 @@ const GameController: React.FC = () => {
                 {/* Keyboard control instructions - hide on mobile */}
                 {!isMobileView && <ControlInstructions />}
 
-                <button
-                  onClick={startGame}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
-                >
-                  Starta Lopp - 3€
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* View Leaderboard Button */}
+                  <button
+                    onClick={() => setShowLeaderboard(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center"
+                  >
+                    <Trophy className="w-5 h-5 mr-2" />
+                    Topplista
+                  </button>
+
+                  {/* Start Game Button */}
+                  <button
+                    onClick={startGame}
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                  >
+                    Starta Lopp - 3€
+                  </button>
+                </div>
               </div>
             )}
 
@@ -445,12 +497,22 @@ const GameController: React.FC = () => {
                   </div>
                 )}
 
-                <button
-                  onClick={startGame}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg mt-2"
-                >
-                  Kör Igen
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setShowLeaderboard(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg text-lg flex items-center justify-center"
+                  >
+                    <Trophy className="w-5 h-5 mr-2" />
+                    Se Topplista
+                  </button>
+                  
+                  <button
+                    onClick={startGame}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg"
+                  >
+                    Kör Igen
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -463,6 +525,23 @@ const GameController: React.FC = () => {
           <MobileControls onControlPress={handleControlPress} />
         </div>
       )}
+
+      {/* Player Name Modal */}
+      <PlayerNameModal
+        isVisible={showPlayerNameModal}
+        completionTime={currentTime}
+        onSubmit={handleSubmitScore}
+        onSkip={handleSkipScoreSubmission}
+        isSubmitting={isSubmittingScore}
+      />
+
+      {/* Leaderboard Modal */}
+      <Leaderboard
+        isVisible={showLeaderboard}
+        onClose={() => setShowLeaderboard(false)}
+        playerRank={playerRank}
+        currentPlayerTime={currentTime}
+      />
     </div>
   );
 };
