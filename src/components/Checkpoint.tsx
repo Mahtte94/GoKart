@@ -1,5 +1,5 @@
 import React from 'react';
-import { Circle } from 'lucide-react';
+import { Circle } from 'lucide-react';""
 
 interface CheckpointProps {
   position: { x: number; y: number };
