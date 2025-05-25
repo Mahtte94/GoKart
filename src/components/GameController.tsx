@@ -622,8 +622,6 @@ const handleTokenReceived = (token: string) => {
                   </button>
                 </div>
 
-                // Add this debug section right after your Start Game button in GameController.tsx:
-
 {/* Debug section - REMOVE IN PRODUCTION */}
 {(process.env.NODE_ENV === "development" || waitingForToken) && (
   <div className="mt-4 p-4 bg-gray-800 rounded-lg">

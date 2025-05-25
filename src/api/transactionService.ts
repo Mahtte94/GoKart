@@ -3,7 +3,7 @@ import { GAME_CONFIG } from "../context/gameConfig";
 // src/api/transactionService.ts
 const API_BASE_URL = import.meta.env.DEV
   ? "/api"
-  : import.meta.env.VITE_API_URL || "https://yrgobanken.vip/api";
+  : import.meta.env.VITE_API_URL || "/api";
 
 // Den här funktionen skickar transaktionen till API:t
 async function postTransaction(
