@@ -16,7 +16,7 @@ async function postTransaction(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": import.meta.env.VITE_API_KEY || "",
+        "X-API-Key": GAME_CONFIG.API_KEY, // Use the API key from game config
       },
       body: JSON.stringify(payload),
     });
@@ -24,6 +24,8 @@ async function postTransaction(
     if (!res.ok) {
       const text = await res.text();
       console.error("Transaction failed with response:", text);
+      console.error("Response status:", res.status);
+      console.error("Response headers:", [...res.headers.entries()]);
 
       let errorData: { error?: string; message?: string } = {};
       try {
@@ -33,9 +35,12 @@ async function postTransaction(
       }
 
       throw new Error(
-        errorData.error || errorData.message || "Transaction failed"
+        errorData.error || errorData.message || `Transaction failed with status ${res.status}`
       );
     }
+
+    const responseData = await res.json();
+    console.log("Transaction successful:", responseData);
   } catch (err: unknown) {
     console.error("Transaction error:", err);
     const message =
@@ -46,32 +51,44 @@ async function postTransaction(
 
 // Används för att rapportera ett spel (drar pengar)
 export async function buyTicket(jwt: string): Promise<void> {
-  return postTransaction(jwt, {
-    amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
+  console.log("Sending buyTicket transaction with payload:", {
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(),
     stake_amount: GAME_CONFIG.COST,
+  });
 
-    // user_id is passed via JWT token
+  return postTransaction(jwt, {
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(), // Convert to string
+    stake_amount: GAME_CONFIG.COST,
+    // Removed group_id as it's not in the API spec
   });
 }
 
 // Används för att rapportera vinst (ger pengar)
 export async function reportPayout(jwt: string, amount: number): Promise<void> {
-  return postTransaction(jwt, {
-    amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
+  console.log("Sending reportPayout transaction with payload:", {
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(),
     payout_amount: amount,
-    stamp_id: GAME_CONFIG.STAMP_ID,
-    // user_id is passed via JWT token
+    stamp_id: GAME_CONFIG.STAMP_ID.toString(),
+  });
+
+  return postTransaction(jwt, {
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(), // Convert to string
+    payout_amount: amount,
+    stamp_id: GAME_CONFIG.STAMP_ID.toString(), // Convert to string
+    // Removed group_id as it's not in the API spec
   });
 }
 
 // Om du behöver ge stämpel istället för/utöver pengar
 export async function awardStamp(jwt: string): Promise<void> {
+  console.log("Sending awardStamp transaction with payload:", {
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(),
+    stamp_id: GAME_CONFIG.STAMP_ID.toString(),
+  });
+
   return postTransaction(jwt, {
-    amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
-    stamp_id: GAME_CONFIG.STAMP_ID,
-    // user_id is passed via JWT token
+    amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(), // Convert to string
+    stamp_id: GAME_CONFIG.STAMP_ID.toString(), // Convert to string
+    // Removed group_id as it's not in the API spec
   });
 }
