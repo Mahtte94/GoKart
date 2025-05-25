@@ -1,5 +1,9 @@
 import { buyTicket, reportPayout, awardStamp } from "./transactionService";
-import { submitScore, getLeaderboard, LeaderboardResponse } from "./LeaderboardService";
+import {
+  submitScore,
+  getLeaderboard,
+  LeaderboardResponse,
+} from "./leaderboardService";
 
 class TivoliApiService {
   // Definierar om vi kör i utvecklingsläge (localhost eller liknande)
@@ -87,7 +91,10 @@ class TivoliApiService {
   /**
    * Skicka in spelresultat till leaderboard
    */
-  static async submitScore(playerName: string, completionTime: number): Promise<{ rank: number; total_players: number }> {
+  static async submitScore(
+    playerName: string,
+    completionTime: number
+  ): Promise<{ rank: number; total_players: number }> {
     const token = this.getToken();
 
     if (!token) {
@@ -95,7 +102,9 @@ class TivoliApiService {
         console.warn(
           "[TivoliApiService] No token found – cannot submit score in development mode without token"
         );
-        throw new Error("No authentication token available for score submission");
+        throw new Error(
+          "No authentication token available for score submission"
+        );
       } else {
         throw new Error(
           "Authentication required. Please launch this game from Tivoli."
@@ -103,14 +112,19 @@ class TivoliApiService {
       }
     }
 
-    console.log("[TivoliApiService] Submitting score:", { playerName, completionTime });
+    console.log("[TivoliApiService] Submitting score:", {
+      playerName,
+      completionTime,
+    });
     return submitScore(token, playerName, completionTime);
   }
 
   /**
    * Hämta leaderboard
    */
-  static async getLeaderboard(limit: number = 50): Promise<LeaderboardResponse> {
+  static async getLeaderboard(
+    limit: number = 50
+  ): Promise<LeaderboardResponse> {
     const token = this.getToken();
 
     if (!token) {
