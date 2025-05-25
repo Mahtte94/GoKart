@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
-import { useTivoliAuth } from "../hooks/useTivoliAuth";
 
 type GameState =
   | "ready"
@@ -75,6 +74,9 @@ const GameController: React.FC = () => {
   const canCountLapRef = useRef<boolean>(false);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
 
+  const token = TivoliApiService.getToken();
+  const isAuthenticated = Boolean(token);
+
   // Leaderboard states
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
   const [showPlayerNameModal, setShowPlayerNameModal] =
@@ -94,8 +96,6 @@ const GameController: React.FC = () => {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
-
-  const { isAuthenticated } = useTivoliAuth();
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -514,7 +514,9 @@ const GameController: React.FC = () => {
                         : "bg-gray-500 cursor-not-allowed"
                     } text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg`}
                   >
-                    {isAuthenticated ? "Starta Lopp: €3" : "Laddar..."}
+                    {isAuthenticated
+                      ? "Starta Lopp: €3"
+                      : "Starta spelet från Tivoli"}
                   </button>
                 </div>
               </div>
