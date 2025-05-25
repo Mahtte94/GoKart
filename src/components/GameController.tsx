@@ -139,31 +139,39 @@ const GameController: React.FC = () => {
     [handleFinish, totalLaps]
   );
 
-  const startGame = useCallback(() => {
-    // Try to buy ticket (pay fee)
-    TivoliApiService.reportSpin()
-      .then(() => {
-        console.log("Spin (start fee) reported successfully");
-        // If successful, start the game
-        setGameState("playing");
-        setCurrentTime(0);
-        setCurrentLap(0);
-        setGameKey((prevKey) => prevKey + 1); // Force Gokart component to reset
-        checkpointsPassedRef.current = [false, false];
-        canCountLapRef.current = false;
+  const startGame = useCallback(async (amount: number) => {
+    try {
+      // Försök rapportera spin (startavgift)
+      await TivoliApiService.reportSpin();
 
-        setTimeout(() => {
-          canCountLapRef.current = true;
-        }, 1500);
+      // Ge spelaren ett frimärke
+      await TivoliApiService.reportStamp();
 
-        if (containerRef.current) containerRef.current.focus();
-      })
-      .catch((error) => {
-        console.error("Failed to start game:", error);
-        alert(
-          "Något gick fel när du skulle starta spelet – försök igen via Tivoli."
-        );
-      });
+      // Rapportera eventuell vinst (ersätt 'amount' med faktiskt värde)
+
+      await TivoliApiService.reportWinnings(amount);
+
+      console.log("Spin (start fee) reported successfully");
+
+      // Om allt gick bra, starta spelet
+      setGameState("playing");
+      setCurrentTime(0);
+      setCurrentLap(0);
+      setGameKey((prevKey) => prevKey + 1); // Tvinga Gokart att återställas
+      checkpointsPassedRef.current = [false, false];
+      canCountLapRef.current = false;
+
+      setTimeout(() => {
+        canCountLapRef.current = true;
+      }, 1500);
+
+      if (containerRef.current) containerRef.current.focus();
+    } catch (error) {
+      console.error("Failed to start game:", error);
+      alert(
+        "Något gick fel när du skulle starta spelet – försök igen via Tivoli."
+      );
+    }
   }, []);
 
   const formatTime = useCallback((seconds: number | null): string => {
@@ -430,7 +438,7 @@ const GameController: React.FC = () => {
                 {!isMobileView && <ControlInstructions />}
 
                 <button
-                  onClick={startGame}
+                  onClick={() => startGame(3)}
                   className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
                 >
                   Starta Lopp: €3
@@ -463,7 +471,7 @@ const GameController: React.FC = () => {
                 )}
 
                 <button
-                  onClick={startGame}
+                  onClick={() => startGame(3)}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-lg mt-2"
                 >
                   Kör igen: €3
