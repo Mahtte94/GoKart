@@ -6,7 +6,6 @@ import FinishLine from "./FinishLine";
 import Checkpoint from "./Checkpoint";
 import Leaderboard from "./Leaderboard";
 import PlayerNameModal from "./PlayerNameModal";
-import ApiDebugComponent from './ApiDebugComponent';
 import {
   ArrowUp,
   ArrowDown,
@@ -719,8 +718,6 @@ const handleTokenReceived = (token: string) => {
         playerRank={playerRank}
         currentPlayerTime={currentTime}
       />
-      {/* Add this just before the last closing </div> */}
-{process.env.NODE_ENV === 'development' && <ApiDebugComponent />}
     </div>
   );
 };

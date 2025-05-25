@@ -30,22 +30,18 @@ export async function submitScore(
   console.log(`Submitting score: ${completionTime}s for player: ${playerName}`);
   
   try {
-    const payload = {
-      amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(), // Convert to string
-      player_name: playerName,
-      completion_time: completionTime,
-    };
-
-    console.log("Submitting score with payload:", payload);
-
     const response = await fetch(`${API_BASE_URL}/leaderboard/submit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY, // Use API key from game config
+        "X-API-Key": GAME_CONFIG.API_KEY,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        amusement_id: GAME_CONFIG.AMUSEMENT_ID,
+        player_name: playerName,
+        completion_time: completionTime,
+      }),
     });
 
     console.log("Score submission response status:", response.status);
@@ -53,8 +49,7 @@ export async function submitScore(
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Score submission failed:", errorText);
-      console.error("Response headers:", [...response.headers.entries()]);
-      throw new Error(`Failed to submit score: ${response.status} - ${errorText}`);
+      throw new Error("Failed to submit score");
     }
 
     const result = await response.json();
@@ -76,24 +71,23 @@ export async function getLeaderboard(
   console.log("Fetching leaderboard...");
   
   try {
-    const url = `${API_BASE_URL}/leaderboard?amusement_id=${GAME_CONFIG.AMUSEMENT_ID}&limit=${limit}`;
-    console.log("Fetching leaderboard from URL:", url);
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY, // Use API key from game config
-      },
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/leaderboard?amusement_id=${GAME_CONFIG.AMUSEMENT_ID}&limit=${limit}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          "X-API-Key": GAME_CONFIG.API_KEY,
+        },
+      }
+    );
 
     console.log("Leaderboard fetch response status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Leaderboard fetch failed:", errorText);
-      console.error("Response headers:", [...response.headers.entries()]);
-      throw new Error(`Failed to fetch leaderboard: ${response.status} - ${errorText}`);
+      throw new Error("Failed to fetch leaderboard");
     }
 
     const result = await response.json();
