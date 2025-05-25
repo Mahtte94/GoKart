@@ -105,8 +105,8 @@ class TivoliApiService {
       }
     }
 
-    if (this.isDevelopment) {
-      console.warn("[TivoliApiService] Using mock score submission for development");
+    if (this.isDevelopment || this.isEmbeddedGame) {
+      console.warn("[TivoliApiService] Using mock score submission");
       return {
         rank: Math.floor(Math.random() * 10) + 1,
         total_players: Math.floor(Math.random() * 50) + 10
@@ -130,8 +130,8 @@ class TivoliApiService {
       }
     }
 
-    if (this.isDevelopment) {
-      console.warn("[TivoliApiService] Using mock leaderboard for development");
+    if (this.isDevelopment || this.isEmbeddedGame) {
+      console.warn("[TivoliApiService] Using mock leaderboard");
       
       const mockTimes = [65, 73, 89, 92, 105, 118, 134, 157, 161, 177];
       const mockLeaderboard = mockTimes.slice(0, Math.min(limit, 10)).map((time, i) => ({
