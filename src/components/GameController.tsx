@@ -99,16 +99,18 @@ const GameController: React.FC = () => {
     const token = TivoliApiService.getToken();
     if (token) {
       setIsAuthenticated(true);
-    } else {
-      const listener = () => {
-        const newToken = TivoliApiService.getToken();
-        if (newToken) {
-          setIsAuthenticated(true);
-          window.removeEventListener("tivoliTokenReceived", listener);
-        }
-      };
-      window.addEventListener("tivoliTokenReceived", listener);
     }
+
+    const listener = (event: Event) => {
+      console.log("[GameController] Token received via postMessage");
+      setIsAuthenticated(true);
+    };
+
+    window.addEventListener("tivoliTokenReceived", listener);
+
+    return () => {
+      window.removeEventListener("tivoliTokenReceived", listener);
+    };
   }, []);
 
   const handleTimeUpdate = useCallback((time: number) => {
@@ -525,7 +527,7 @@ const GameController: React.FC = () => {
                     className={`${
                       isAuthenticated
                         ? "bg-green-600 hover:bg-green-700"
-                        : "bg-gray-500"
+                        : "bg-gray-500 cursor-not-allowed"
                     } text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg`}
                   >
                     {isAuthenticated ? "Starta Lopp: €3" : "Laddar..."}
