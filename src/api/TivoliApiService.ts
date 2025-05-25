@@ -13,7 +13,8 @@ class TivoliApiService {
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1" ||
     window.location.hostname.includes("yrgobanken.vip") || // Add your domain
-    window.location.hostname.includes("tivoli.yrgobanken.vip"); // Add subdomain
+    window.location.hostname.includes("tivoli.yrgobanken.vip") || // Add subdomain
+    window.location.hostname.includes("vercel.app");
 
   /**
    * Hämtar token från localStorage
