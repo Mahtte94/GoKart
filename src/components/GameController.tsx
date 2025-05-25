@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
+import JwtListener from "./JwtListener";
+import { decodeJwt } from "./decodeUtil";
 
 type GameState =
   | "ready"
@@ -33,6 +35,13 @@ interface GokartRefHandle {
     minY: number;
     maxY: number;
   }) => void;
+}
+
+interface MyTokenPayload {
+  sub: string;
+  name: string;
+  exp: number;
+  [key: string]: any;
 }
 
 const CHECKPOINTS = [
@@ -72,7 +81,6 @@ const GameController: React.FC = () => {
   const lastPositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const checkpointsPassedRef = useRef<boolean[]>([false, false]);
   const canCountLapRef = useRef<boolean>(false);
-  const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -84,17 +92,91 @@ const GameController: React.FC = () => {
   const [playerRank, setPlayerRank] = useState<number | undefined>(undefined);
 
   // Kart physics data
-  const [currentSpeed, setCurrentSpeed] = useState<number>(0);
-  const [maxSpeed, setMaxSpeed] = useState<number>(8);
-
-  // UI and debugging
-  const [showDebug, setShowDebug] = useState<boolean>(true);
-  const [checkpointsVisible, setCheckpointsVisible] = useState<boolean>(true);
   const [gameKey, setGameKey] = useState<number>(0); // Used to reset the game
 
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
+
+  const [tivoliAuthStatus, setTivoliAuthStatus] = useState<string | null>(null);
+
+  // Single useEffect for authentication handling
+  useEffect(() => {
+    const checkAuthentication = () => {
+      // Check URL parameters for token first
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenFromUrl = urlParams.get("token");
+
+      if (tokenFromUrl) {
+        // Store token in localStorage
+        localStorage.setItem("token", tokenFromUrl);
+
+        // Validate token
+        const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
+        if (decoded) {
+          // Check if token is expired
+          const currentTime = Math.floor(Date.now() / 1000);
+          if (decoded.exp && decoded.exp < currentTime) {
+            setTivoliAuthStatus("Token expired. Please login again.");
+            localStorage.removeItem("token");
+            setIsAuthenticated(false);
+          } else {
+            setTivoliAuthStatus("Authenticated with Tivoli (URL)");
+            setIsAuthenticated(true);
+          }
+        } else {
+          setTivoliAuthStatus("Invalid token from URL");
+          setIsAuthenticated(false);
+        }
+        return;
+      }
+
+      // Check localStorage for existing token
+      const storedToken = localStorage.getItem("token");
+      if (storedToken) {
+        // Skip validation for test token
+        if (storedToken === "test-token-for-development") {
+          setTivoliAuthStatus("Test mode enabled");
+          setIsAuthenticated(true);
+          return;
+        }
+
+        const decoded = decodeJwt<MyTokenPayload>(storedToken);
+        if (decoded) {
+          // Check if token is expired
+          const currentTime = Math.floor(Date.now() / 1000);
+          if (decoded.exp && decoded.exp < currentTime) {
+            setTivoliAuthStatus("Token expired. Please login again.");
+            localStorage.removeItem("token");
+            setIsAuthenticated(false);
+          } else {
+            setTivoliAuthStatus("Authenticated with Tivoli (stored)");
+            setIsAuthenticated(true);
+          }
+        } else {
+          setTivoliAuthStatus("Invalid stored token");
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+        }
+        return;
+      }
+
+      // No token found
+      const isInIframe = window.parent !== window;
+      if (process.env.NODE_ENV === "development" && !isInIframe) {
+        setTivoliAuthStatus("Development - awaiting authentication");
+        setIsAuthenticated(false);
+      } else if (isInIframe) {
+        setTivoliAuthStatus("Waiting for token from Tivoli...");
+        setIsAuthenticated(false);
+      } else {
+        setTivoliAuthStatus("Not launched from Tivoli");
+        setIsAuthenticated(false);
+      }
+    };
+
+    checkAuthentication();
+  }, []);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -294,6 +376,17 @@ const GameController: React.FC = () => {
     </div>
   );
 
+  const handleTokenReceived = (token: string) => {
+    const decoded = decodeJwt<MyTokenPayload>(token);
+    if (decoded) {
+      setIsAuthenticated(true);
+      setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
+    } else {
+      setTivoliAuthStatus("Invalid token from postMessage");
+      setIsAuthenticated(false);
+    }
+  };
+
   useEffect(() => {
     const checkMobileAndScale = () => {
       const isMobile = window.innerWidth < 1024;
@@ -390,6 +483,7 @@ const GameController: React.FC = () => {
 
   const ControlInstructions = () => (
     <div className="flex flex-col items-center mb-4 bg-gray-800 bg-opacity-90 p-4 rounded-lg">
+      <JwtListener onTokenReceived={handleTokenReceived} />
       <h3 className="text-white font-bold mb-3 text-lg">
         Tangentbordskontroller:
       </h3>
