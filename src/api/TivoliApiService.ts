@@ -11,10 +11,7 @@ class TivoliApiService {
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
 
-  static isEmbeddedGame =
-    window.location.hostname.includes("vercel.app") ||
-    window.location.hostname.includes("yrgobanken.vip") ||
-    window.location.hostname.includes("tivoli.yrgobanken.vip");
+
 
     
       /**
@@ -107,7 +104,7 @@ class TivoliApiService {
           }
         }
       
-        if (this.isDevelopment || this.isEmbeddedGame) {
+        if (this.isDevelopment) {
           console.warn("[TivoliApiService] Using mock score submission");
           return {
             rank: Math.floor(Math.random() * 10) + 1,
@@ -134,7 +131,7 @@ class TivoliApiService {
           }
         }
       
-        if (this.isDevelopment || this.isEmbeddedGame) {
+        if (this.isDevelopment) {
           console.warn("[TivoliApiService] Using mock leaderboard");
       
           const mockTimes = [65, 73, 89, 92, 105, 118, 134, 157, 161, 177];
