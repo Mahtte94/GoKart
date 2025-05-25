@@ -675,35 +675,7 @@ const GameController: React.FC = () => {
       Status: {tivoliAuthStatus}
     </p>
     
-    <button
-      onClick={() => {
-        // Force test authentication
-        const testToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImV4cCI6OTk5OTk5OTk5OX0.test";
-        localStorage.setItem("token", testToken);
-        setIsAuthenticated(true);
-        setWaitingForToken(false);
-        setTivoliAuthStatus("Test authentication enabled");
-        
-        // Trigger storage event
-        window.dispatchEvent(new Event("storage"));
-      }}
-      className="mt-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-1 rounded text-xs"
-    >
-      Force Test Authentication
-    </button>
-    
-    <button
-      onClick={() => {
-        // Clear token and reset
-        localStorage.removeItem("token");
-        setIsAuthenticated(false);
-        setWaitingForToken(true);
-        window.location.reload();
-      }}
-      className="mt-2 ml-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs"
-    >
-      Clear & Reset
-    </button>
+
   </div>
 )}
                 
