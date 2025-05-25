@@ -88,9 +88,13 @@ class TivoliApiService {
 
   static getToken(): string | null {
     if (!this._tokenSearched) {
-      this.debugAuthentication();
       this._token = this.searchForToken();
       this._tokenSearched = true;
+    }
+
+    if (!this._token && this.isDevelopment) {
+      console.warn("[Dev mode] Using fake token for development.");
+      return "dev-mode-token";
     }
 
     return this._token;
@@ -240,61 +244,40 @@ class TivoliApiService {
   // Rest of your existing methods remain the same...
   static async reportSpin(): Promise<void> {
     const token = this.getToken();
-
-    if (!token) {
-      if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn(
-          "[TivoliApiService] No token found – simulating spin transaction"
-        );
+    if (!token || token === "dev-mode-token") {
+      if (this.isDevelopment) {
+        console.warn("[Dev mode] Simulating spin transaction.");
         return Promise.resolve();
-      } else {
-        throw new Error(
-          "Authentication required. Please launch this game from Tivoli."
-        );
       }
+      throw new Error("Authentication required.");
     }
 
-    console.log("[TivoliApiService] Reporting spin with real token");
     return buyTicket(token);
   }
 
   static async reportWinnings(amount: number): Promise<void> {
     const token = this.getToken();
-
-    if (!token) {
-      if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn(
-          "[TivoliApiService] No token found – simulating winnings transaction"
-        );
+    if (!token || token === "dev-mode-token") {
+      if (this.isDevelopment) {
+        console.warn(`[Dev mode] Simulating payout: €${amount}`);
         return Promise.resolve();
-      } else {
-        throw new Error(
-          "Authentication required. Please launch this game from Tivoli."
-        );
       }
+      throw new Error("Authentication required.");
     }
 
-    console.log("[TivoliApiService] Reporting winnings with amount:", amount);
     return reportPayout(token, amount);
   }
 
   static async reportStamp(): Promise<void> {
     const token = this.getToken();
-
-    if (!token) {
-      if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn(
-          "[TivoliApiService] No token found – simulating stamp transaction"
-        );
+    if (!token || token === "dev-mode-token") {
+      if (this.isDevelopment) {
+        console.warn("[Dev mode] Simulating stamp award.");
         return Promise.resolve();
-      } else {
-        throw new Error(
-          "Authentication required. Please launch this game from Tivoli."
-        );
       }
+      throw new Error("Authentication required.");
     }
 
-    console.log("[TivoliApiService] Awarding stamp with real token");
     return awardStamp(token);
   }
 

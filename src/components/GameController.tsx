@@ -66,6 +66,7 @@ const GameController: React.FC = () => {
   const [isMobileView, setIsMobileView] = useState<boolean>(false);
   const [isPortrait, setIsPortrait] = useState<boolean>(false);
   const [currentScale, setCurrentScale] = useState<number>(1);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
   const [currentLap, setCurrentLap] = useState<number>(0);
   const [totalLaps] = useState<number>(TOTAL_LAPS);
@@ -93,6 +94,22 @@ const GameController: React.FC = () => {
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const gokartRef = useRef<GokartRefHandle>(null);
+
+  useEffect(() => {
+    const token = TivoliApiService.getToken();
+    if (token) {
+      setIsAuthenticated(true);
+    } else {
+      const listener = () => {
+        const newToken = TivoliApiService.getToken();
+        if (newToken) {
+          setIsAuthenticated(true);
+          window.removeEventListener("tivoliTokenReceived", listener);
+        }
+      };
+      window.addEventListener("tivoliTokenReceived", listener);
+    }
+  }, []);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -504,9 +521,14 @@ const GameController: React.FC = () => {
                   {/* Start Game Button */}
                   <button
                     onClick={() => startGame(3)}
-                    className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200"
+                    disabled={!isAuthenticated}
+                    className={`${
+                      isAuthenticated
+                        ? "bg-green-600 hover:bg-green-700"
+                        : "bg-gray-500"
+                    } text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg`}
                   >
-                    Starta Lopp: €3
+                    {isAuthenticated ? "Starta Lopp: €3" : "Laddar..."}
                   </button>
                 </div>
               </div>
