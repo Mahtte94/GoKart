@@ -11,21 +11,15 @@ async function postTransaction(
   payload: Record<string, unknown>
 ): Promise<void> {
   try {
-    console.log("Sending transaction:", payload);
-    console.log("Using API key:", GAME_CONFIG.API_KEY);
-    console.log("Using JWT:", jwt?.substring(0, 20) + "...");
-    
     const res = await fetch(`${API_BASE_URL}/transactions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY, // ✅ Use the correct API key
+        "X-API-Key": import.meta.env.VITE_API_KEY || "",
       },
       body: JSON.stringify(payload),
     });
-
-    console.log("Transaction response status:", res.status);
 
     if (!res.ok) {
       const text = await res.text();
@@ -42,9 +36,6 @@ async function postTransaction(
         errorData.error || errorData.message || "Transaction failed"
       );
     }
-
-    const responseData = await res.text();
-    console.log("Transaction successful:", responseData);
   } catch (err: unknown) {
     console.error("Transaction error:", err);
     const message =
@@ -57,8 +48,9 @@ async function postTransaction(
 export async function buyTicket(jwt: string): Promise<void> {
   return postTransaction(jwt, {
     amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID,
+    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
     stake_amount: GAME_CONFIG.COST,
+
     // user_id is passed via JWT token
   });
 }
@@ -67,7 +59,7 @@ export async function buyTicket(jwt: string): Promise<void> {
 export async function reportPayout(jwt: string, amount: number): Promise<void> {
   return postTransaction(jwt, {
     amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID,
+    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
     payout_amount: amount,
     stamp_id: GAME_CONFIG.STAMP_ID,
     // user_id is passed via JWT token
@@ -78,7 +70,7 @@ export async function reportPayout(jwt: string, amount: number): Promise<void> {
 export async function awardStamp(jwt: string): Promise<void> {
   return postTransaction(jwt, {
     amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-    group_id: GAME_CONFIG.GROUP_ID,
+    group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
     stamp_id: GAME_CONFIG.STAMP_ID,
     // user_id is passed via JWT token
   });

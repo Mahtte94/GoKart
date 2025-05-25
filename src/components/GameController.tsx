@@ -6,7 +6,6 @@ import FinishLine from "./FinishLine";
 import Checkpoint from "./Checkpoint";
 import Leaderboard from "./Leaderboard";
 import PlayerNameModal from "./PlayerNameModal";
-import DebugPanel from "./DebugPanel"; // Import the debug panel
 import {
   ArrowUp,
   ArrowDown,
@@ -15,8 +14,6 @@ import {
   Flag,
   CheckCircle,
   Trophy,
-  Settings,
-  AlertCircle,
 } from "lucide-react";
 import MobileControls from "./MobileControls";
 import TivoliApiService from "../api/TivoliApiService";
@@ -87,7 +84,6 @@ const GameController: React.FC = () => {
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [waitingForToken, setWaitingForToken] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   // Leaderboard states
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
@@ -95,9 +91,6 @@ const GameController: React.FC = () => {
     useState<boolean>(false);
   const [isSubmittingScore, setIsSubmittingScore] = useState<boolean>(false);
   const [playerRank, setPlayerRank] = useState<number | undefined>(undefined);
-
-  // Debug states
-  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
 
   // Kart physics data
   const [gameKey, setGameKey] = useState<number>(0); // Used to reset the game
@@ -108,118 +101,95 @@ const GameController: React.FC = () => {
 
   const [tivoliAuthStatus, setTivoliAuthStatus] = useState<string | null>(null);
 
-  // Single useEffect for authentication handling
-  useEffect(() => {
-    const checkAuthentication = () => {
-      console.log("[GameController] Checking authentication...");
-      
-      // Check URL parameters for token first
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get("token");
+// Single useEffect for authentication handling
+useEffect(() => {
+  const checkAuthentication = () => {
+    // Check URL parameters for token first
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
 
-      if (tokenFromUrl) {
-        console.log("[GameController] Token found in URL");
-        // Store token in localStorage
-        localStorage.setItem("token", tokenFromUrl);
+    if (tokenFromUrl) {
+      // Store token in localStorage
+      localStorage.setItem("token", tokenFromUrl);
 
-        // Validate token
-        const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
-        if (decoded) {
-          // Check if token is expired
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (decoded.exp && decoded.exp < currentTime) {
-            setTivoliAuthStatus("Token expired. Please login again.");
-            setAuthError("Token has expired");
-            localStorage.removeItem("token");
-            setIsAuthenticated(false);
-          } else {
-            setTivoliAuthStatus("Authenticated with Tivoli (URL)");
-            setAuthError(null);
-            setIsAuthenticated(true);
-          }
-        } else {
-          setTivoliAuthStatus("Invalid token from URL");
-          setAuthError("Invalid token format");
-          setIsAuthenticated(false);
-        }
-        return;
-      }
-
-      // Check localStorage for existing token
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        console.log("[GameController] Token found in localStorage");
-        
-        // Skip validation for test token
-        if (storedToken === "test-token-for-development") {
-          setTivoliAuthStatus("Test mode enabled");
-          setAuthError(null);
-          setIsAuthenticated(true);
-          return;
-        }
-
-        const decoded = decodeJwt<MyTokenPayload>(storedToken);
-        if (decoded) {
-          // Check if token is expired
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (decoded.exp && decoded.exp < currentTime) {
-            setTivoliAuthStatus("Token expired. Please login again.");
-            setAuthError("Stored token has expired");
-            localStorage.removeItem("token");
-            setIsAuthenticated(false);
-          } else {
-            setTivoliAuthStatus("Authenticated with Tivoli (stored)");
-            setAuthError(null);
-            setIsAuthenticated(true);
-          }
-        } else {
-          setTivoliAuthStatus("Invalid stored token");
-          setAuthError("Invalid stored token format");
+      // Validate token
+      const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
+      if (decoded) {
+        // Check if token is expired
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < currentTime) {
+          setTivoliAuthStatus("Token expired. Please login again.");
           localStorage.removeItem("token");
           setIsAuthenticated(false);
+        } else {
+          setTivoliAuthStatus("Authenticated with Tivoli (URL)");
+          setIsAuthenticated(true);
         }
+      } else {
+        setTivoliAuthStatus("Invalid token from URL");
+        setIsAuthenticated(false);
+      }
+      return;
+    }
+
+    // Check localStorage for existing token
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      // Skip validation for test token
+      if (storedToken === "test-token-for-development") {
+        setTivoliAuthStatus("Test mode enabled");
+        setIsAuthenticated(true);
         return;
       }
 
-      // No token found
-      const isInIframe = window.parent !== window;
-      if (process.env.NODE_ENV === "development" && !isInIframe) {
-        setTivoliAuthStatus("Development - awaiting authentication");
-        setAuthError(null);
-        setIsAuthenticated(false);
-        setWaitingForToken(false);
-      } else if (isInIframe) {
-        setTivoliAuthStatus("Waiting for token from Tivoli...");
-        setAuthError(null);
-        setIsAuthenticated(false);
-        setWaitingForToken(true);
+      const decoded = decodeJwt<MyTokenPayload>(storedToken);
+      if (decoded) {
+        // Check if token is expired
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (decoded.exp && decoded.exp < currentTime) {
+          setTivoliAuthStatus("Token expired. Please login again.");
+          localStorage.removeItem("token");
+          setIsAuthenticated(false);
+        } else {
+          setTivoliAuthStatus("Authenticated with Tivoli (stored)");
+          setIsAuthenticated(true);
+        }
       } else {
-        setTivoliAuthStatus("Not launched from Tivoli");
-        setAuthError("Game must be launched from Tivoli platform");
+        setTivoliAuthStatus("Invalid stored token");
+        localStorage.removeItem("token");
         setIsAuthenticated(false);
-        setWaitingForToken(false);
       }
-    };
+      return;
+    }
 
-    checkAuthentication();
-  }, []);
-
-  // Handler for when JwtListener receives a token
-  const handleTokenReceived = (token: string) => {
-    console.log("[GameController] Token received from JwtListener");
-    const decoded = decodeJwt<MyTokenPayload>(token);
-    if (decoded) {
-      setIsAuthenticated(true);
-      setAuthError(null);
-      setWaitingForToken(false);
-      setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
-    } else {
-      setTivoliAuthStatus("Invalid token from postMessage");
-      setAuthError("Invalid token received");
+    // No token found
+    const isInIframe = window.parent !== window;
+    if (process.env.NODE_ENV === "development" && !isInIframe) {
+      setTivoliAuthStatus("Development - awaiting authentication");
       setIsAuthenticated(false);
-      setWaitingForToken(false);
+    } else if (isInIframe) {
+      setTivoliAuthStatus("Waiting for token from Tivoli...");
+      setIsAuthenticated(false);
+    } else {
+      setTivoliAuthStatus("Not launched from Tivoli");
+      setIsAuthenticated(false);
     }
   };
+
+  checkAuthentication();
+}, []);
+
+// Handler for when JwtListener receives a token
+const handleTokenReceived = (token: string) => {
+  const decoded = decodeJwt<MyTokenPayload>(token);
+  if (decoded) {
+    setIsAuthenticated(true);
+    setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
+  } else {
+    setTivoliAuthStatus("Invalid token from postMessage");
+    setIsAuthenticated(false);
+  }
+};
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -281,29 +251,27 @@ const GameController: React.FC = () => {
     [handleFinish, totalLaps]
   );
 
+ 
+
   const startGame = useCallback(async (amount: number) => {
-    console.log("[GameController] Starting game with amount:", amount);
-    
     try {
-      setGameState("playing");
-      
-      // Try to report the game transactions
-      console.log("[GameController] Reporting spin (start fee)...");
+      // Försök rapportera spin (startavgift)
       await TivoliApiService.reportSpin();
-      console.log("[GameController] Spin reported successfully");
+      console.log("Spin (start fee) reported successfully");
 
-      console.log("[GameController] Reporting winnings...");
+      // Rapportera vinst (valfritt - här används 'amount' som dummy-belopp)
       await TivoliApiService.reportWinnings(amount);
-      console.log("[GameController] Winnings reported successfully");
+      console.log(`Winnings reported successfully with amount: ${amount}`);
 
-      console.log("[GameController] Awarding stamp...");
+      // Ge spelaren ett stämpelkort
       await TivoliApiService.reportStamp();
-      console.log("[GameController] Stamp awarded successfully");
+      console.log("Stamp awarded successfully");
 
-      // Reset game state
+      // Om allt gick bra, starta spelet
+      setGameState("playing");
       setCurrentTime(0);
       setCurrentLap(0);
-      setGameKey((prevKey) => prevKey + 1); // Force Gokart to reset
+      setGameKey((prevKey) => prevKey + 1); // Tvinga Gokart att återställas
       checkpointsPassedRef.current = [false, false];
       canCountLapRef.current = false;
 
@@ -312,19 +280,11 @@ const GameController: React.FC = () => {
       }, 1500);
 
       if (containerRef.current) containerRef.current.focus();
-      
     } catch (error) {
-      console.error("[GameController] Failed to start game:", error);
-      setGameState("ready"); // Reset to ready state on error
-      
-      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-      
-      if (errorMessage.includes("Authentication required")) {
-        setAuthError("Authentication expired. Please refresh the game from Tivoli.");
-        setIsAuthenticated(false);
-      } else {
-        alert(`Något gick fel när du skulle starta spelet: ${errorMessage}`);
-      }
+      console.error("Failed to start game:", error);
+      alert(
+        "Något gick fel när du skulle starta spelet – försök igen via Tivoli."
+      );
     }
   }, []);
 
@@ -496,24 +456,9 @@ const GameController: React.FC = () => {
     }
   };
 
-  // Debug functions for development
-  const setTestToken = () => {
-    localStorage.setItem('token', 'test-token-for-development');
-    setIsAuthenticated(true);
-    setAuthError(null);
-    setTivoliAuthStatus("Test token set (development)");
-    console.log("[GameController] Test token set");
-  };
-
-  const clearToken = () => {
-    localStorage.removeItem('token');
-    setIsAuthenticated(false);
-    setTivoliAuthStatus("Token cleared");
-    console.log("[GameController] Token cleared");
-  };
-
   const ControlInstructions = () => (
     <div className="flex flex-col items-center mb-4 bg-gray-800 bg-opacity-90 p-4 rounded-lg">
+      <JwtListener onTokenReceived={handleTokenReceived} />
       <h3 className="text-white font-bold mb-3 text-lg">
         Tangentbordskontroller:
       </h3>
@@ -563,7 +508,6 @@ const GameController: React.FC = () => {
     <div ref={containerRef} className="game-wrapper relative" tabIndex={-1}>
       {/* JWT Listener for iframe communication */}
       <JwtListener onTokenReceived={handleTokenReceived} />
-      
       {/* Orientation overlay for portrait mode */}
       {isPortrait && (
         <div className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex flex-col justify-center items-center text-center px-6">
@@ -576,22 +520,9 @@ const GameController: React.FC = () => {
 
       {/* Game header with timer */}
       <div className="game-header flex justify-between items-center p-2 md:p-3 bg-gray-800">
-        <div className="flex items-center space-x-2">
-          <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white">
-            Go-Kart Race
-          </h2>
-          
-          {/* Debug button for development */}
-          {process.env.NODE_ENV === "development" && (
-            <button
-              onClick={() => setShowDebugPanel(true)}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white p-1 rounded"
-              title="Debug Panel"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+        <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white">
+          Go-Kart Race
+        </h2>
 
         <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4">
           {bestTime !== null && (
@@ -660,17 +591,6 @@ const GameController: React.FC = () => {
                   för att räkna ett varv!
                 </p>
 
-                {/* Authentication Error Display */}
-                {authError && (
-                  <div className="mb-4 p-3 bg-red-900 border border-red-700 rounded-lg flex items-center">
-                    <AlertCircle className="w-5 h-5 text-red-400 mr-2 flex-shrink-0" />
-                    <div className="text-red-300 text-sm">
-                      <p className="font-semibold">Autentiseringsfel:</p>
-                      <p>{authError}</p>
-                    </div>
-                  </div>
-                )}
-
                 {/* Keyboard control instructions - hide on mobile */}
                 {!isMobileView && <ControlInstructions />}
 
@@ -702,49 +622,30 @@ const GameController: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Development Tools */}
-                {process.env.NODE_ENV === "development" && (
-                  <div className="mt-4 p-4 bg-gray-800 rounded-lg space-y-2">
-                    <p className="text-xs text-gray-400 mb-2">
-                      Development Tools:
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={setTestToken}
-                        className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                      >
-                        Set Test Token
-                      </button>
-                      <button
-                        onClick={clearToken}
-                        className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-                      >
-                        Clear Token
-                      </button>
-                      <button
-                        onClick={() => console.log(TivoliApiService.getDebugInfo())}
-                        className="bg-purple-600 text-white px-3 py-1 rounded text-sm"
-                      >
-                        Log Debug Info
-                      </button>
-                    </div>
-                  </div>
-                )}
+{/* Debug section - REMOVE IN PRODUCTION */}
+{(process.env.NODE_ENV === "development" || waitingForToken) && (
+  <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+    <p className="text-xs text-gray-400 mb-2">
+      Debug Info:
+    </p>
+    <p className="text-xs text-gray-300">
+      In iframe: {(window.parent !== window).toString()}<br/>
+      Waiting for token: {waitingForToken.toString()}<br/>
+      Authenticated: {isAuthenticated.toString()}<br/>
+      Token exists: {(!!localStorage.getItem("token")).toString()}<br/>
+      Status: {tivoliAuthStatus}
+    </p>
+    
 
-                {/* Status Information */}
-                <div className="mt-4 p-4 bg-gray-800 rounded-lg">
-                  <p className="text-xs text-gray-400 mb-2">
-                    Status Information:
+  </div>
+)}
+                
+                {/* Debug status - remove in production */}
+                {process.env.NODE_ENV === "development" && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Status: {tivoliAuthStatus}
                   </p>
-                  <div className="text-xs text-gray-300 space-y-1">
-                    <p>In iframe: {(window.parent !== window).toString()}</p>
-                    <p>Waiting for token: {waitingForToken.toString()}</p>
-                    <p>Authenticated: {isAuthenticated.toString()}</p>
-                    <p>Token exists: {(!!localStorage.getItem("token")).toString()}</p>
-                    <p>Status: {tivoliAuthStatus}</p>
-                    <p>Environment: {process.env.NODE_ENV}</p>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -816,12 +717,6 @@ const GameController: React.FC = () => {
         onClose={() => setShowLeaderboard(false)}
         playerRank={playerRank}
         currentPlayerTime={currentTime}
-      />
-
-      {/* Debug Panel */}
-      <DebugPanel
-        isVisible={showDebugPanel}
-        onClose={() => setShowDebugPanel(false)}
       />
     </div>
   );
