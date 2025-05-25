@@ -1,151 +1,175 @@
-
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 interface JwtListenerProps {
   onTokenReceived?: (token: string) => void;
 }
 
 export default function JwtListener({ onTokenReceived }: JwtListenerProps) {
+  const hasInitialized = useRef(false);
+  const checkInterval = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
-    console.log("[JwtListener] Initializing...");
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
     
-    // Check if we're in an iframe
-    const isInIframe = window.parent !== window;
-    console.log("[JwtListener] Is in iframe:", isInIframe);
+    console.log("[JwtListener] Starting comprehensive token detection...");
     
-    // Send GAME_READY message to parent if we're in an iframe
-    if (isInIframe) {
-      try {
-        console.log("[JwtListener] Sending GAME_READY to parent");
-        // Send to any origin during development
-        window.parent.postMessage({ type: "GAME_READY" }, "*");
-        
-        // Also try common message formats
-        window.parent.postMessage({ type: "READY" }, "*");
-        window.parent.postMessage({ action: "ready" }, "*");
-        window.parent.postMessage("ready", "*");
-      } catch (err) {
-        console.error("[JwtListener] Failed to send GAME_READY:", err);
+    // Function to check all possible token locations
+    const findToken = (): string | null => {
+      // 1. Check URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get("token") || urlParams.get("jwt") || urlParams.get("auth");
+      if (urlToken) {
+        console.log("[JwtListener] Found token in URL params");
+        return urlToken;
       }
+      
+      // 2. Check hash parameters
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const hashToken = hashParams.get("token") || hashParams.get("jwt") || hashParams.get("auth");
+        if (hashToken) {
+          console.log("[JwtListener] Found token in hash params");
+          return hashToken;
+        }
+      }
+      
+      // 3. Check localStorage
+      const localToken = localStorage.getItem("token") || localStorage.getItem("jwt");
+      if (localToken && localToken !== "null" && localToken !== "undefined") {
+        console.log("[JwtListener] Found token in localStorage");
+        return localToken;
+      }
+      
+      // 4. Check sessionStorage
+      const sessionToken = sessionStorage.getItem("token") || sessionStorage.getItem("jwt");
+      if (sessionToken) {
+        console.log("[JwtListener] Found token in sessionStorage");
+        return sessionToken;
+      }
+      
+      // 5. Check global window variables
+      const windowAny = window as any;
+      if (windowAny.jwt || windowAny.token || windowAny.JWT_TOKEN) {
+        console.log("[JwtListener] Found token in window object");
+        return windowAny.jwt || windowAny.token || windowAny.JWT_TOKEN;
+      }
+      
+      // 6. Check document cookies
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if ((name === 'token' || name === 'jwt') && value) {
+          console.log("[JwtListener] Found token in cookies");
+          return value;
+        }
+      }
+      
+      return null;
+    };
+    
+    // Check immediately
+    const immediateToken = findToken();
+    if (immediateToken) {
+      localStorage.setItem("token", immediateToken);
+      if (onTokenReceived) {
+        onTokenReceived(immediateToken);
+      }
+      window.dispatchEvent(new CustomEvent("token_received", { detail: immediateToken }));
+      return;
     }
-
-    // Listen for token from parent window
+    
+    // Set up periodic checking (every 500ms for 10 seconds)
+    let checkCount = 0;
+    const maxChecks = 20;
+    
+    checkInterval.current = setInterval(() => {
+      checkCount++;
+      console.log(`[JwtListener] Checking for token... (attempt ${checkCount}/${maxChecks})`);
+      
+      const token = findToken();
+      if (token) {
+        console.log("[JwtListener] Token found!");
+        localStorage.setItem("token", token);
+        if (onTokenReceived) {
+          onTokenReceived(token);
+        }
+        window.dispatchEvent(new CustomEvent("token_received", { detail: token }));
+        
+        if (checkInterval.current) {
+          clearInterval(checkInterval.current);
+        }
+      } else if (checkCount >= maxChecks) {
+        console.log("[JwtListener] Stopped checking for token after 10 seconds");
+        if (checkInterval.current) {
+          clearInterval(checkInterval.current);
+        }
+      }
+    }, 500);
+    
+    // Also listen for postMessage (keep existing approach)
     const handleMessage = (event: MessageEvent) => {
-      console.log("[JwtListener] Message received from:", event.origin);
-      console.log("[JwtListener] Message data:", event.data);
+      console.log("[JwtListener] Message received:", event.origin, event.data);
       
-      // In development, temporarily accept all origins
-      const isDev = process.env.NODE_ENV === "development";
-      const allowedOrigins = [
-        'https://tivoli.yrgobanken.vip',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-      ];
-      
-      if (!isDev && !allowedOrigins.includes(event.origin) && event.origin !== window.location.origin) {
-        console.log("[JwtListener] Origin not allowed, ignoring message");
-        return;
+      // Don't check origin in development
+      if (process.env.NODE_ENV === "production") {
+        const allowedOrigins = ['https://tivoli.yrgobanken.vip'];
+        if (!allowedOrigins.includes(event.origin)) {
+          return;
+        }
       }
       
       const data = event.data;
       let jwt: string | null = null;
-
-      // Check many different formats the token might come in
-      if (typeof data === "object" && data !== null) {
-        // Common token field names
-        const tokenFields = ['jwt', 'token', 'access_token', 'authToken', 'accessToken', 'jwtToken'];
-        
-        for (const field of tokenFields) {
-          if (data[field] && typeof data[field] === 'string') {
-            jwt = data[field];
-            console.log(`[JwtListener] Found token in field: ${field}`);
-            break;
-          }
-        }
-        
-        // Check for nested structures
-        if (!jwt && data.data) {
-          for (const field of tokenFields) {
-            if (data.data[field] && typeof data.data[field] === 'string') {
-              jwt = data.data[field];
-              console.log(`[JwtListener] Found token in data.${field}`);
-              break;
-            }
-          }
-        }
-        
-        // Check for type-based messages
-        if (!jwt && data.type) {
-          const tokenTypes = ['JWT_TOKEN', 'TOKEN', 'INIT', 'AUTH', 'AUTHENTICATE'];
-          if (tokenTypes.includes(data.type)) {
-            jwt = data.token || data.jwt || data.payload;
-            if (jwt) {
-              console.log(`[JwtListener] Found token with type: ${data.type}`);
-            }
-          }
-        }
-      } else if (typeof data === "string") {
-        // Check if it's a JWT (starts with eyJ)
-        if (data.startsWith("eyJ")) {
-          jwt = data;
-          console.log("[JwtListener] Found token as string");
-        }
-        // Check if it's a JSON string
-        else {
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.token || parsed.jwt) {
-              jwt = parsed.token || parsed.jwt;
-              console.log("[JwtListener] Found token in JSON string");
-            }
-          } catch {
-            // Not JSON, ignore
-          }
-        }
+      
+      if (typeof data === "string" && data.startsWith("eyJ")) {
+        jwt = data;
+      } else if (typeof data === "object" && data) {
+        jwt = data.jwt || data.token || data.access_token || data.authToken;
       }
-
-      if (jwt && typeof jwt === "string") {
-        console.log("[JwtListener] Valid token found, storing...");
+      
+      if (jwt) {
+        console.log("[JwtListener] Token received via postMessage!");
         localStorage.setItem("token", jwt);
-        
-        // Notify App component
         if (onTokenReceived) {
           onTokenReceived(jwt);
         }
-        
-        // Dispatch multiple events to ensure they're caught
         window.dispatchEvent(new CustomEvent("token_received", { detail: jwt }));
-        window.dispatchEvent(new CustomEvent("tivoliTokenReceived", { detail: jwt }));
-        window.dispatchEvent(new Event("storage"));
-      } else {
-        console.log("[JwtListener] No valid token found in message");
       }
     };
-
-    window.addEventListener("message", handleMessage);
-
-    // Retry sending GAME_READY every 2 seconds if no token received
-    let retryCount = 0;
-    const maxRetries = 5;
     
-    const retryInterval = setInterval(() => {
-      if (!localStorage.getItem("token") && isInIframe && retryCount < maxRetries) {
-        retryCount++;
-        console.log(`[JwtListener] Retry ${retryCount}: Sending GAME_READY again`);
+    window.addEventListener("message", handleMessage);
+    
+    // Send ready message to parent (if in iframe)
+    if (window.parent !== window) {
+      console.log("[JwtListener] Sending ready signal to parent");
+      
+      // Try multiple approaches
+      setTimeout(() => {
+        // Standard postMessage
         window.parent.postMessage({ type: "GAME_READY" }, "*");
-        window.parent.postMessage({ type: "READY" }, "*");
         window.parent.postMessage("ready", "*");
-      } else {
-        clearInterval(retryInterval);
-      }
-    }, 2000);
-
+        
+        // Try dispatching events on the iframe element
+        try {
+          if (window.frameElement) {
+            window.frameElement.dispatchEvent(new Event("load"));
+            window.frameElement.dispatchEvent(new CustomEvent("gameready"));
+          }
+        } catch (e) {
+          console.log("[JwtListener] Cannot access frameElement");
+        }
+      }, 100);
+    }
+    
     return () => {
+      if (checkInterval.current) {
+        clearInterval(checkInterval.current);
+      }
       window.removeEventListener("message", handleMessage);
-      clearInterval(retryInterval);
+      hasInitialized.current = false;
     };
   }, [onTokenReceived]);
-
+  
   return null;
 }
