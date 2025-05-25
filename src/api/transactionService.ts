@@ -10,22 +10,16 @@ async function postTransaction(
   jwt: string,
   payload: Record<string, unknown>
 ): Promise<void> {
-  
-
   try {
-    
-
     const res = await fetch(`${API_BASE_URL}/transactions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY,
+        "X-API-Key": import.meta.env.VITE_API_KEY || "",
       },
       body: JSON.stringify(payload),
     });
-
-  
 
     if (!res.ok) {
       const text = await res.text();
@@ -42,7 +36,6 @@ async function postTransaction(
         errorData.error || errorData.message || "Transaction failed"
       );
     }
-
   } catch (err: unknown) {
     console.error("Transaction error:", err);
     const message =
@@ -57,7 +50,7 @@ export async function buyTicket(jwt: string): Promise<void> {
     amusement_id: GAME_CONFIG.AMUSEMENT_ID,
     group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
     stake_amount: GAME_CONFIG.COST,
-    
+
     // user_id is passed via JWT token
   });
 }
@@ -68,7 +61,7 @@ export async function reportPayout(jwt: string, amount: number): Promise<void> {
     amusement_id: GAME_CONFIG.AMUSEMENT_ID,
     group_id: GAME_CONFIG.GROUP_ID, // Add this to your game config
     payout_amount: amount,
-    stamp_id: GAME_CONFIG.STAMP_ID
+    stamp_id: GAME_CONFIG.STAMP_ID,
     // user_id is passed via JWT token
   });
 }
