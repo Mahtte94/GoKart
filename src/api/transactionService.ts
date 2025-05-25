@@ -10,42 +10,70 @@ async function postTransaction(
   jwt: string,
   payload: Record<string, unknown>
 ): Promise<void> {
+  console.log("Sending transaction request:", {
+    url: `${API_BASE_URL}/transactions`,
+    payload,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt ? jwt.substring(0, 20) + '...' : 'null'}`,
+      "X-API-Key": GAME_CONFIG.API_KEY.substring(0, 10) + '...',
+    }
+  });
+
   try {
     const res = await fetch(`${API_BASE_URL}/transactions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${jwt}`,
-        "X-API-Key": GAME_CONFIG.API_KEY, // Use the API key from game config
+        "X-API-Key": GAME_CONFIG.API_KEY,
       },
       body: JSON.stringify(payload),
     });
 
+    console.log("Transaction response status:", res.status);
+    console.log("Transaction response headers:", Object.fromEntries(res.headers.entries()));
+
     if (!res.ok) {
       const text = await res.text();
-      console.error("Transaction failed with response:", text);
-      console.error("Response status:", res.status);
-      console.error("Response headers:", [...res.headers.entries()]);
+      console.error("Transaction failed:", {
+        status: res.status,
+        statusText: res.statusText,
+        responseText: text,
+        headers: Object.fromEntries(res.headers.entries())
+      });
 
-      let errorData: { error?: string; message?: string } = {};
+      // Try to parse as JSON first, but handle plain text responses
+      let errorMessage = `Transaction failed with status ${res.status}`;
       try {
-        errorData = JSON.parse(text);
+        const errorData = JSON.parse(text);
+        errorMessage = errorData.error || errorData.message || errorMessage;
       } catch {
-        errorData = { error: "Invalid error format from API" };
+        // If it's not JSON, use the plain text response
+        if (text && text.trim()) {
+          errorMessage = `${errorMessage}: ${text.trim()}`;
+        }
       }
 
-      throw new Error(
-        errorData.error || errorData.message || `Transaction failed with status ${res.status}`
-      );
+      throw new Error(errorMessage);
     }
 
-    const responseData = await res.json();
-    console.log("Transaction successful:", responseData);
+    // Handle successful response
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const responseData = await res.json();
+      console.log("Transaction successful:", responseData);
+    } else {
+      const responseText = await res.text();
+      console.log("Transaction successful (text response):", responseText);
+    }
   } catch (err: unknown) {
     console.error("Transaction error:", err);
-    const message =
-      err instanceof Error ? err.message : "Unknown error during transaction";
-    throw new Error(message);
+    if (err instanceof Error) {
+      throw err; // Re-throw the original error with proper message
+    } else {
+      throw new Error("Unknown error during transaction");
+    }
   }
 }
 
