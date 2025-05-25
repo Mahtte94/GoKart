@@ -11,7 +11,7 @@ class TivoliApiService {
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
 
-  static isEmbeddedGame = 
+  static isEmbeddedGame =
     window.location.hostname.includes("vercel.app") ||
     window.location.hostname.includes("yrgobanken.vip") ||
     window.location.hostname.includes("tivoli.yrgobanken.vip");
@@ -22,51 +22,67 @@ class TivoliApiService {
 
   static debugAuthentication(): void {
     console.log("=== TIVOLI AUTHENTICATION DEBUG ===");
-    
+
     console.log("Current URL:", window.location.href);
     console.log("Hostname:", window.location.hostname);
-    console.log("All URL params:", Object.fromEntries(new URLSearchParams(window.location.search)));
-    
+    console.log(
+      "All URL params:",
+      Object.fromEntries(new URLSearchParams(window.location.search))
+    );
+
     console.log("localStorage token:", localStorage.getItem("token"));
     console.log("sessionStorage token:", sessionStorage.getItem("token"));
     console.log("All localStorage keys:", Object.keys(localStorage));
-    
+
     console.log("Is in iframe:", window.top !== window.self);
     console.log("Document referrer:", document.referrer);
-    
+
     console.log("Document cookies:", document.cookie);
-    
+
     try {
       console.log("Parent URL:", window.parent.location.href);
     } catch (e) {
       console.log("Cannot access parent URL (CORS blocked)");
     }
-    
+
     const urlParams = new URLSearchParams(window.location.search);
     const commonTokenNames = [
-      'token', 'jwt', 'auth', 'access_token', 'bearer', 
-      'sessionToken', 'authToken', 'userToken', 'tivoliToken'
+      "token",
+      "jwt",
+      "auth",
+      "access_token",
+      "bearer",
+      "sessionToken",
+      "authToken",
+      "userToken",
+      "tivoliToken",
     ];
-    
-    commonTokenNames.forEach(name => {
+
+    commonTokenNames.forEach((name) => {
       const value = urlParams.get(name);
       if (value) {
-        console.log(`Found token parameter '${name}':`, value.substring(0, 20) + "...");
+        console.log(
+          `Found token parameter '${name}':`,
+          value.substring(0, 20) + "..."
+        );
       }
     });
-    
+
     const hash = window.location.hash;
     if (hash) {
       console.log("URL hash:", hash);
       const hashParams = new URLSearchParams(hash.substring(1));
-      commonTokenNames.forEach(name => {
+      commonTokenNames.forEach((name) => {
         const value = hashParams.get(name);
         if (value) {
-          console.log(`Found token in hash parameter '${name}':`, value.substring(0, 20) + "...");
+          console.log(
+            `Found token in hash parameter '${name}':`,
+            value.substring(0, 20) + "..."
+          );
         }
       });
     }
-    
+
     console.log("=== END DEBUG ===");
   }
 
@@ -76,7 +92,7 @@ class TivoliApiService {
       this._token = this.searchForToken();
       this._tokenSearched = true;
     }
-    
+
     return this._token;
   }
 
@@ -101,10 +117,17 @@ class TivoliApiService {
     // 3. Check URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const tokenParamNames = [
-      'token', 'jwt', 'auth', 'access_token', 'bearer', 
-      'sessionToken', 'authToken', 'userToken', 'tivoliToken'
+      "token",
+      "jwt",
+      "auth",
+      "access_token",
+      "bearer",
+      "sessionToken",
+      "authToken",
+      "userToken",
+      "tivoliToken",
     ];
-    
+
     for (const paramName of tokenParamNames) {
       token = urlParams.get(paramName);
       if (token) {
@@ -129,9 +152,9 @@ class TivoliApiService {
     }
 
     // 5. Check cookies
-    const cookies = document.cookie.split(';');
+    const cookies = document.cookie.split(";");
     for (const cookie of cookies) {
-      const [name, value] = cookie.trim().split('=');
+      const [name, value] = cookie.trim().split("=");
       if (tokenParamNames.includes(name)) {
         console.log(`✅ Token found in cookie '${name}'`);
         localStorage.setItem("token", value);
@@ -150,54 +173,57 @@ class TivoliApiService {
 
   private static setupMessageListener(): void {
     this._messageListenerAdded = true;
-    
-    window.addEventListener('message', (event) => {
+
+    window.addEventListener("message", (event) => {
       console.log("📨 Received postMessage:", event);
-      
+
       // Security check - only accept messages from Tivoli domains
-      if (!event.origin.includes('yrgobanken.vip')) {
+      if (!event.origin.includes("yrgobanken.vip")) {
         console.log("🚫 Rejected message from untrusted origin:", event.origin);
         return;
       }
-      
+
       let token = null;
-      
+
       // Check different message formats
-      if (typeof event.data === 'string') {
+      if (typeof event.data === "string") {
         // Direct token string
         token = event.data;
-      } else if (event.data && typeof event.data === 'object') {
+      } else if (event.data && typeof event.data === "object") {
         // Object with token property
-        token = event.data.token || 
-                event.data.jwt || 
-                event.data.auth || 
-                event.data.authToken ||
-                event.data.access_token;
+        token =
+          event.data.token ||
+          event.data.jwt ||
+          event.data.auth ||
+          event.data.authToken ||
+          event.data.access_token;
       }
-      
-      if (token && typeof token === 'string' && token.length > 10) {
+
+      if (token && typeof token === "string" && token.length > 10) {
         console.log("✅ Token received via postMessage");
         this._token = token;
         localStorage.setItem("token", token);
-        
+
         // Notify that token is now available
-        window.dispatchEvent(new CustomEvent('tivoliTokenReceived', { detail: token }));
+        window.dispatchEvent(
+          new CustomEvent("tivoliTokenReceived", { detail: token })
+        );
       }
     });
-    
+
     // Request token from parent
     try {
       const requests = [
-        { type: 'REQUEST_TOKEN' },
-        { action: 'getToken' },
-        { request: 'token' },
-        'REQUEST_TOKEN'
+        { type: "REQUEST_TOKEN" },
+        { action: "getToken" },
+        { request: "token" },
+        "REQUEST_TOKEN",
       ];
-      
-      requests.forEach(request => {
-        window.parent.postMessage(request, '*');
+
+      requests.forEach((request) => {
+        window.parent.postMessage(request, "*");
       });
-      
+
       console.log("📤 Token requests sent to parent window");
     } catch (e) {
       console.log("❌ Could not request token from parent:", e);
@@ -217,10 +243,14 @@ class TivoliApiService {
 
     if (!token) {
       if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn("[TivoliApiService] No token found – simulating spin transaction");
+        console.warn(
+          "[TivoliApiService] No token found – simulating spin transaction"
+        );
         return Promise.resolve();
       } else {
-        throw new Error("Authentication required. Please launch this game from Tivoli.");
+        throw new Error(
+          "Authentication required. Please launch this game from Tivoli."
+        );
       }
     }
 
@@ -233,10 +263,14 @@ class TivoliApiService {
 
     if (!token) {
       if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn("[TivoliApiService] No token found – simulating winnings transaction");
+        console.warn(
+          "[TivoliApiService] No token found – simulating winnings transaction"
+        );
         return Promise.resolve();
       } else {
-        throw new Error("Authentication required. Please launch this game from Tivoli.");
+        throw new Error(
+          "Authentication required. Please launch this game from Tivoli."
+        );
       }
     }
 
@@ -249,10 +283,14 @@ class TivoliApiService {
 
     if (!token) {
       if (this.isDevelopment || this.isEmbeddedGame) {
-        console.warn("[TivoliApiService] No token found – simulating stamp transaction");
+        console.warn(
+          "[TivoliApiService] No token found – simulating stamp transaction"
+        );
         return Promise.resolve();
       } else {
-        throw new Error("Authentication required. Please launch this game from Tivoli.");
+        throw new Error(
+          "Authentication required. Please launch this game from Tivoli."
+        );
       }
     }
 
@@ -279,14 +317,18 @@ class TivoliApiService {
       console.warn("[TivoliApiService] Using mock score submission");
       return {
         rank: Math.floor(Math.random() * 10) + 1,
-        total_players: Math.floor(Math.random() * 50) + 10
+        total_players: Math.floor(Math.random() * 50) + 10,
       };
     }
 
-    throw new Error("Authentication required. Please launch this game from Tivoli.");
+    throw new Error(
+      "Authentication required. Please launch this game from Tivoli."
+    );
   }
 
-  static async getLeaderboard(limit: number = 50): Promise<LeaderboardResponse> {
+  static async getLeaderboard(
+    limit: number = 50
+  ): Promise<LeaderboardResponse> {
     const token = this.getToken();
 
     if (token) {
@@ -300,27 +342,31 @@ class TivoliApiService {
 
     if (this.isDevelopment || this.isEmbeddedGame) {
       console.warn("[TivoliApiService] Using mock leaderboard");
-      
+
       const mockTimes = [65, 73, 89, 92, 105, 118, 134, 157, 161, 177];
-      const mockLeaderboard = mockTimes.slice(0, Math.min(limit, 10)).map((time, i) => ({
-        id: i + 1,
-        player_name: `Player ${i + 1}`,
-        completion_time: time,
-        completed_at: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
-        rank: i + 1
-      }));
+      const mockLeaderboard = mockTimes
+        .slice(0, Math.min(limit, 10))
+        .map((time, i) => ({
+          id: i + 1,
+          player_name: `Player ${i + 1}`,
+          completion_time: time,
+          completed_at: new Date(
+            Date.now() - Math.random() * 86400000 * 7
+          ).toISOString(),
+          rank: i + 1,
+        }));
 
       return {
         leaderboard: mockLeaderboard,
         total_players: mockLeaderboard.length,
-        player_rank: undefined
+        player_rank: undefined,
       };
     }
 
     return {
       leaderboard: [],
       total_players: 0,
-      player_rank: undefined
+      player_rank: undefined,
     };
   }
 

@@ -158,8 +158,15 @@ const GameController: React.FC = () => {
     try {
       // Försök rapportera spin (startavgift)
       await TivoliApiService.reportSpin();
-
       console.log("Spin (start fee) reported successfully");
+
+      // Rapportera vinst (valfritt - här används 'amount' som dummy-belopp)
+      await TivoliApiService.reportWinnings(amount);
+      console.log(`Winnings reported successfully with amount: ${amount}`);
+
+      // Ge spelaren ett stämpelkort
+      await TivoliApiService.reportStamp();
+      console.log("Stamp awarded successfully");
 
       // Om allt gick bra, starta spelet
       setGameState("playing");
