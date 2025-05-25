@@ -5,7 +5,7 @@ import LapIndicator from "./LapIndicator";
 import FinishLine from "./FinishLine";
 import Checkpoint from "./Checkpoint";
 import Leaderboard from "./Leaderboard";
-import PlayerNameModal from "./PlayernameModal";
+import PlayerNameModal from "./PlayerNameModal";
 import {
   ArrowUp,
   ArrowDown,
