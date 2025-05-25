@@ -460,13 +460,6 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
         y={position.y}
         rotation={position.rotation}
       />
-
-      {/* Focus notification */}
-      <div className="absolute bottom-2 left-2 text-sm bg-black bg-opacity-50 p-1 rounded text-white">
-        {!isFocused &&
-          isGameActive &&
-          "Klicka på spelplanen för att aktivera tangentbordskontroller"}
-      </div>
     </div>
   );
 });
