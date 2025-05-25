@@ -83,6 +83,7 @@ const GameController: React.FC = () => {
   const canCountLapRef = useRef<boolean>(false);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [waitingForToken, setWaitingForToken] = useState(false);
 
   // Leaderboard states
   const [showLeaderboard, setShowLeaderboard] = useState<boolean>(false);
@@ -100,7 +101,7 @@ const GameController: React.FC = () => {
 
   const [tivoliAuthStatus, setTivoliAuthStatus] = useState<string | null>(null);
 
-  // Single useEffect for authentication handling
+  // Improved authentication handling with proper token update detection
   useEffect(() => {
     const checkAuthentication = () => {
       // Check URL parameters for token first
@@ -110,7 +111,7 @@ const GameController: React.FC = () => {
       if (tokenFromUrl) {
         // Store token in localStorage
         localStorage.setItem("token", tokenFromUrl);
-
+        
         // Validate token
         const decoded = decodeJwt<MyTokenPayload>(tokenFromUrl);
         if (decoded) {
@@ -169,6 +170,7 @@ const GameController: React.FC = () => {
       } else if (isInIframe) {
         setTivoliAuthStatus("Waiting for token from Tivoli...");
         setIsAuthenticated(false);
+        setWaitingForToken(true);
       } else {
         setTivoliAuthStatus("Not launched from Tivoli");
         setIsAuthenticated(false);
@@ -176,6 +178,25 @@ const GameController: React.FC = () => {
     };
 
     checkAuthentication();
+
+    // Listen for token updates from JwtListener
+    const handleTokenUpdate = () => {
+      console.log("Token update detected, re-checking authentication");
+      checkAuthentication();
+    };
+
+    // Listen for both custom event and storage events
+    window.addEventListener("token_received", handleTokenUpdate);
+    window.addEventListener("storage", handleTokenUpdate);
+    
+    // Also listen for custom event that might be dispatched
+    window.addEventListener("tivoliTokenReceived", handleTokenUpdate);
+
+    return () => {
+      window.removeEventListener("token_received", handleTokenUpdate);
+      window.removeEventListener("storage", handleTokenUpdate);
+      window.removeEventListener("tivoliTokenReceived", handleTokenUpdate);
+    };
   }, []);
 
   const handleTimeUpdate = useCallback((time: number) => {
@@ -238,25 +259,29 @@ const GameController: React.FC = () => {
     [handleFinish, totalLaps]
   );
 
-  useEffect(() => {
-    const checkToken = () => {
-      const token = localStorage.getItem("token");
-      console.log("[Auth Check] Token in localStorage:", token);
-      if (token) {
+  const handleTokenReceived = (token: string) => {
+    console.log("Token received in GameController:", token.substring(0, 20) + "...");
+    
+    // Store in localStorage
+    localStorage.setItem("token", token);
+    
+    // Validate and update authentication state
+    const decoded = decodeJwt<MyTokenPayload>(token);
+    if (decoded) {
+      const currentTime = Math.floor(Date.now() / 1000);
+      if (decoded.exp && decoded.exp < currentTime) {
+        setTivoliAuthStatus("Token expired. Please login again.");
+        setIsAuthenticated(false);
+      } else {
+        setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
         setIsAuthenticated(true);
+        setWaitingForToken(false);
       }
-    };
-
-    // Check once on load
-    checkToken();
-
-    // Also re-check if token is injected later
-    window.addEventListener("tivoliTokenReceived", checkToken);
-
-    return () => {
-      window.removeEventListener("tivoliTokenReceived", checkToken);
-    };
-  }, []);
+    } else {
+      setTivoliAuthStatus("Invalid token from postMessage");
+      setIsAuthenticated(false);
+    }
+  };
 
   const startGame = useCallback(async (amount: number) => {
     try {
@@ -366,26 +391,6 @@ const GameController: React.FC = () => {
       );
     };
   }, []);
-
-  const OrientationOverlay = () => (
-    <div className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex flex-col justify-center items-center text-center px-6">
-      <h2 className="text-white text-2xl font-bold mb-4">Rotera enheten</h2>
-      <p className="text-white text-lg">
-        Vrid din mobil till liggande läge för att spela spelet.
-      </p>
-    </div>
-  );
-
-  const handleTokenReceived = (token: string) => {
-    const decoded = decodeJwt<MyTokenPayload>(token);
-    if (decoded) {
-      setIsAuthenticated(true);
-      setTivoliAuthStatus("Authenticated with Tivoli (postMessage)");
-    } else {
-      setTivoliAuthStatus("Invalid token from postMessage");
-      setIsAuthenticated(false);
-    }
-  };
 
   useEffect(() => {
     const checkMobileAndScale = () => {
@@ -531,6 +536,16 @@ const GameController: React.FC = () => {
 
   return (
     <div ref={containerRef} className="game-wrapper relative" tabIndex={-1}>
+      {/* Orientation overlay for portrait mode */}
+      {isPortrait && (
+        <div className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex flex-col justify-center items-center text-center px-6">
+          <h2 className="text-white text-2xl font-bold mb-4">Rotera enheten</h2>
+          <p className="text-white text-lg">
+            Vrid din mobil till liggande läge för att spela spelet.
+          </p>
+        </div>
+      )}
+
       {/* Game header with timer */}
       <div className="game-header flex justify-between items-center p-2 md:p-3 bg-gray-800">
         <h2 className="text-base sm:text-xl md:text-2xl font-bold text-white">
@@ -620,18 +635,27 @@ const GameController: React.FC = () => {
                   {/* Start Game Button */}
                   <button
                     onClick={() => startGame(3)}
-                    disabled={!isAuthenticated}
+                    disabled={!isAuthenticated || waitingForToken}
                     className={`${
-                      isAuthenticated
+                      isAuthenticated && !waitingForToken
                         ? "bg-green-600 hover:bg-green-700"
                         : "bg-gray-500 cursor-not-allowed"
-                    } text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg`}
+                    } text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transform hover:scale-105 transition-all duration-200`}
                   >
-                    {isAuthenticated
-                      ? "Starta Lopp: €3"
-                      : "Starta spelet via Tivoli"}
+                    {waitingForToken 
+                      ? "Ansluter till Tivoli..."
+                      : isAuthenticated
+                        ? "Starta Lopp: €3"
+                        : "Starta spelet via Tivoli"}
                   </button>
                 </div>
+                
+                {/* Debug status - remove in production */}
+                {process.env.NODE_ENV === "development" && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    Status: {tivoliAuthStatus}
+                  </p>
+                )}
               </div>
             )}
 
