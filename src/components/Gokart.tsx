@@ -52,14 +52,14 @@ const Gokart = forwardRef<GokartRefHandle, GokartProps>((props, ref) => {
   const rectangleSize = { width: 64, height: 64 };
 
   const [position, setPosition] = useState<Position>(START_POSITION);
-  const [baseSpeed] = useState<number>(6);
+  const [baseSpeed] = useState<number>(3);
   const [isOnTrack, setIsOnTrack] = useState<boolean>(true);
   const [rotation, setRotation] = useState<number>(START_POSITION.rotation);
   const [currentSpeed, setCurrentSpeed] = useState<number>(0);
   const [maxSpeed, setMaxSpeed] = useState<number>(baseSpeed);
-  const [acceleration] = useState<number>(0.15);
+  const [acceleration] = useState<number>(0.12);
   const [deceleration] = useState<number>(0.08);
-  const [rotationSpeed] = useState<number>(3);
+  const [rotationSpeed] = useState<number>(2.5);
   const [isFocused, setIsFocused] = useState<boolean>(false);
 
   const [shakeFactor, setShakeFactor] = useState<number>(0);
