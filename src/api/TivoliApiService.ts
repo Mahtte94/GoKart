@@ -183,6 +183,7 @@ class TivoliApiService {
 
   /**
    * Store completion time as a special transaction
+   * Fixed to match API structure exactly
    */
   private static async storeScoreAsTransaction(
     token: string, 
@@ -192,12 +193,15 @@ class TivoliApiService {
   ): Promise<void> {
     const API_BASE_URL = import.meta.env.DEV ? "/api" : import.meta.env.VITE_API_URL || "/api";
     
+    // Create a unique stamp_id for this score
+    const scoreStampId = `gokart_score_${completionTime}_${Date.now()}`;
+    
     const payload = {
-      amusement_id: GAME_CONFIG.AMUSEMENT_ID,
-      group_id: GAME_CONFIG.GROUP_ID,
-      stake_amount: completionTime, // Store completion time in stake_amount field
-      payout_amount: 0, // Mark as score transaction with 0 payout
-      stamp_id: `score_${userId}_${Date.now()}`, // Unique identifier for score transactions
+      amusement_id: GAME_CONFIG.AMUSEMENT_ID.toString(), // Ensure string
+      group_id: GAME_CONFIG.GROUP_ID.toString(), // Ensure string  
+      stake_amount: 0.0, // No stake for score records
+      payout_amount: completionTime, // Store completion time as payout_amount instead
+      stamp_id: scoreStampId,
     };
 
     console.log("[TivoliApiService] Storing score as transaction:", payload);
@@ -214,15 +218,22 @@ class TivoliApiService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Failed to store score transaction:", errorText);
-      throw new Error(`Failed to store score: ${response.status}`);
+      console.error("Failed to store score transaction:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        payload: payload
+      });
+      throw new Error(`Failed to store score: ${response.status} ${response.statusText}`);
     }
 
-    console.log("[TivoliApiService] Score stored successfully as transaction");
+    const result = await response.json();
+    console.log("[TivoliApiService] Score stored successfully as transaction:", result);
   }
 
   /**
    * Get all score transactions to build leaderboard
+   * Fixed to properly identify score transactions
    */
   private static async getScoreTransactions(token: string): Promise<Array<{
     id: number;
@@ -234,6 +245,7 @@ class TivoliApiService {
     
     console.log("[TivoliApiService] Fetching score transactions...");
     
+    // Fetch transactions for this specific amusement
     const response = await fetch(`${API_BASE_URL}/transactions?amusement_id=${GAME_CONFIG.AMUSEMENT_ID}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -243,16 +255,21 @@ class TivoliApiService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Failed to fetch transactions:", errorText);
+      console.error("Failed to fetch transactions:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
       throw new Error(`Failed to fetch transactions: ${response.status}`);
     }
 
     const transactions = await response.json();
     console.log("[TivoliApiService] Raw transactions:", transactions);
     
-    // Filter for score transactions (payout_amount = 0 and stamp_id starts with "score_")
+    // Filter for score transactions
+    // We identify score transactions by stamp_id containing "gokart_score_"
     const scoreTransactions = transactions.filter(
-      (t: any) => t.payout_amount === 0 && String(t.stamp_id).startsWith("score_")
+      (t: any) => t.stamp_id && String(t.stamp_id).includes("gokart_score_")
     );
 
     console.log("[TivoliApiService] Filtered score transactions:", scoreTransactions);
@@ -261,18 +278,31 @@ class TivoliApiService {
     return scoreTransactions.map((t: any) => ({
       id: t.id,
       player_name: this.getUserNameFromTransaction(t),
-      completion_time: t.stake_amount, // We stored time in stake_amount
+      completion_time: t.payout_amount, // We stored time in payout_amount
       completed_at: t.created_at || new Date().toISOString(),
     }));
   }
 
   /**
-   * Extract user name from transaction - this might need adjustment based on API response
+   * Extract user name from transaction - simplified version
    */
   private static getUserNameFromTransaction(transaction: any): string {
-    // This will depend on what user info is included in the transaction response
-    // May need to make additional API calls to get user names
-    return transaction.user?.name || transaction.player_name || `Player ${transaction.id}`;
+    // Try to get name from transaction user object
+    if (transaction.user?.name) {
+      return transaction.user.name;
+    }
+    
+    // Try other common user name fields
+    if (transaction.player_name) {
+      return transaction.player_name;
+    }
+    
+    if (transaction.username) {
+      return transaction.username;
+    }
+    
+    // Fallback to generic name
+    return `Player ${transaction.id}`;
   }
 
   /**
