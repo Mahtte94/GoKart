@@ -200,7 +200,7 @@ class TivoliApiService {
       stamp_id: `score_${userId}_${Date.now()}`, // Unique identifier for score transactions
     };
 
-    console.log("[TivoliApiService] Storing score transaction:", payload);
+    console.log("[TivoliApiService] Storing score as transaction:", payload);
 
     const response = await fetch(`${API_BASE_URL}/transactions`, {
       method: "POST",
@@ -214,11 +214,11 @@ class TivoliApiService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[TivoliApiService] Failed to store score transaction:", errorText);
-      throw new Error(`Failed to store score: ${response.status} - ${errorText}`);
+      console.error("Failed to store score transaction:", errorText);
+      throw new Error(`Failed to store score: ${response.status}`);
     }
 
-    console.log("[TivoliApiService] Score transaction stored successfully");
+    console.log("[TivoliApiService] Score stored successfully as transaction");
   }
 
   /**
@@ -232,8 +232,8 @@ class TivoliApiService {
   }>> {
     const API_BASE_URL = import.meta.env.DEV ? "/api" : import.meta.env.VITE_API_URL || "/api";
     
-    console.log("[TivoliApiService] Fetching transactions for amusement:", GAME_CONFIG.AMUSEMENT_ID);
-
+    console.log("[TivoliApiService] Fetching score transactions...");
+    
     const response = await fetch(`${API_BASE_URL}/transactions?amusement_id=${GAME_CONFIG.AMUSEMENT_ID}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -243,29 +243,26 @@ class TivoliApiService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("[TivoliApiService] Failed to fetch transactions:", errorText);
-      throw new Error(`Failed to fetch transactions: ${response.status} - ${errorText}`);
+      console.error("Failed to fetch transactions:", errorText);
+      throw new Error(`Failed to fetch transactions: ${response.status}`);
     }
 
-    const data = await response.json();
-    console.log("[TivoliApiService] Fetched transactions:", data);
-    
-    // Handle both array response and object with transactions array
-    const transactions = Array.isArray(data) ? data : (data.transactions || data.data || []);
+    const transactions = await response.json();
+    console.log("[TivoliApiService] Raw transactions:", transactions);
     
     // Filter for score transactions (payout_amount = 0 and stamp_id starts with "score_")
     const scoreTransactions = transactions.filter(
-      (t: any) => t.payout_amount === 0 && String(t.stamp_id || '').startsWith("score_")
+      (t: any) => t.payout_amount === 0 && String(t.stamp_id).startsWith("score_")
     );
 
-    console.log("[TivoliApiService] Found score transactions:", scoreTransactions);
+    console.log("[TivoliApiService] Filtered score transactions:", scoreTransactions);
 
     // Convert to leaderboard format
-    return scoreTransactions.map((t: any, index: number) => ({
-      id: t.id || index,
+    return scoreTransactions.map((t: any) => ({
+      id: t.id,
       player_name: this.getUserNameFromTransaction(t),
       completion_time: t.stake_amount, // We stored time in stake_amount
-      completed_at: t.created_at || t.completed_at || new Date().toISOString(),
+      completed_at: t.created_at || new Date().toISOString(),
     }));
   }
 
@@ -273,22 +270,9 @@ class TivoliApiService {
    * Extract user name from transaction - this might need adjustment based on API response
    */
   private static getUserNameFromTransaction(transaction: any): string {
-    // Try multiple possible fields for user name
-    if (transaction.user?.name) return transaction.user.name;
-    if (transaction.player_name) return transaction.player_name;
-    if (transaction.user?.username) return transaction.user.username;
-    if (transaction.username) return transaction.username;
-    
-    // Extract from stamp_id if available (format: score_userId_timestamp)
-    if (transaction.stamp_id && typeof transaction.stamp_id === 'string') {
-      const parts = transaction.stamp_id.split('_');
-      if (parts.length >= 2) {
-        return `Player ${parts[1]}`;
-      }
-    }
-    
-    // Fallback to generic name with transaction ID
-    return `Player ${transaction.id || Math.random().toString(36).substr(2, 5)}`;
+    // This will depend on what user info is included in the transaction response
+    // May need to make additional API calls to get user names
+    return transaction.user?.name || transaction.player_name || `Player ${transaction.id}`;
   }
 
   /**
@@ -298,7 +282,7 @@ class TivoliApiService {
     playerName: string, 
     completionTime: number
   ): Promise<{ rank: number; total_players: number }> {
-    console.log("[TivoliApiService] Using local storage for score submission");
+    console.log("[TivoliApiService] Using local storage fallback for score submission");
     
     const localScores = this.getLocalScores();
     const newScore = {
@@ -330,7 +314,7 @@ class TivoliApiService {
    * Local storage fallback for leaderboard
    */
   private static getLeaderboardLocal(limit: number): Promise<LeaderboardResponse> {
-    console.log("[TivoliApiService] Using local storage for leaderboard");
+    console.log("[TivoliApiService] Using local storage fallback for leaderboard");
     
     const localScores = this.getLocalScores();
     const limitedScores = localScores.slice(0, Math.min(limit, localScores.length));
