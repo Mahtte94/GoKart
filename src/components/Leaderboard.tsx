@@ -1,8 +1,7 @@
 // src/components/Leaderboard.tsx
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Award, Clock, User, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
-import TivoliApiService from '../api/TivoliApiService';
-import { LeaderboardEntry, LeaderboardResponse } from '../api/LeaderboardService';
+import { Trophy, Medal, Award, Clock, User, Loader2, RefreshCw, AlertCircle, Monitor } from 'lucide-react';
+import TivoliApiService, { LeaderboardEntry, LeaderboardResponse } from '../api/TivoliApiService';
 
 interface LeaderboardProps {
   onClose: () => void;
@@ -25,11 +24,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const data = await TivoliApiService.getLeaderboard(50); // Fetch more entries for scrolling
+      const data = await TivoliApiService.getLeaderboard(50);
       setLeaderboardData(data);
     } catch (err) {
       console.error('Failed to fetch leaderboard:', err);
-      setError('Kunde inte ladda topplistan. Kontrollera att du är inloggad via Tivoli.');
+      setError('Kunde inte ladda topplistan.');
     } finally {
       setLoading(false);
     }
@@ -98,11 +97,14 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
         <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <Trophy className="w-8 h-8 text-yellow-400" />
+              <div className="relative">
+                <Trophy className="w-8 h-8 text-yellow-400" />
+                <Monitor className="w-4 h-4 text-blue-200 absolute -bottom-1 -right-1" />
+              </div>
               <div>
-                <h2 className="text-2xl font-bold">Topplista</h2>
+                <h2 className="text-2xl font-bold">Lokal Topplista</h2>
                 <p className="text-blue-100 text-sm">
-                  {leaderboardData ? `${leaderboardData.total_players} spelare totalt` : 'Laddar...'}
+                  {leaderboardData ? `${leaderboardData.total_players} resultat på denna enhet` : 'Laddar...'}
                 </p>
               </div>
             </div>
@@ -124,9 +126,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
             </div>
           </div>
 
+          {/* Local storage info */}
+          <div className="mt-4 bg-white/10 rounded-lg p-3">
+            <div className="flex items-center space-x-2 text-sm">
+              <Monitor className="w-4 h-4" />
+              <span>Resultat sparas lokalt på denna enhet</span>
+            </div>
+          </div>
+
           {/* Player's current rank display */}
           {playerRank && currentPlayerTime && (
-            <div className="mt-4 bg-white/10 rounded-lg p-3">
+            <div className="mt-3 bg-white/10 rounded-lg p-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Din placering:</span>
                 <div className="flex items-center space-x-2">
@@ -144,7 +154,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
           {loading && (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-              <span className="ml-3 text-gray-400">Laddar topplista...</span>
+              <span className="ml-3 text-gray-400">Laddar resultat...</span>
             </div>
           )}
 
@@ -214,7 +224,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
                   <div className="text-center">
                     <Trophy className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p className="text-lg mb-2">Inga resultat än</p>
-                    <p className="text-sm">Bli den första att sätta ett rekord!</p>
+                    <p className="text-sm">Spela ett lopp för att sätta ditt första rekord!</p>
                   </div>
                 </div>
               )}
@@ -225,9 +235,10 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
         {/* Footer */}
         <div className="bg-gray-800 px-6 py-4 border-t border-gray-700 flex-shrink-0">
           <div className="flex justify-between items-center">
-            <p className="text-gray-400 text-sm">
-              Kör snabbare för att komma högre upp på listan!
-            </p>
+            <div className="flex items-center space-x-2 text-gray-400 text-sm">
+              <Monitor className="w-4 h-4" />
+              <p>Resultat sparas endast på denna enhet</p>
+            </div>
             <button
               onClick={onClose}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors font-medium"

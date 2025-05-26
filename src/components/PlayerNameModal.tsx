@@ -1,6 +1,6 @@
 // src/components/PlayerNameModal.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { User, Loader2, Trophy } from 'lucide-react';
+import { User, Loader2, Trophy, Monitor } from 'lucide-react';
 
 interface PlayerNameModalProps {
   isVisible: boolean;
@@ -61,7 +61,7 @@ const PlayerNameModal: React.FC<PlayerNameModalProps> = ({
     }
     
     setError('');
-    onSubmit(trimmedName);
+    handleNameSubmit(trimmedName);
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,9 +120,10 @@ const PlayerNameModal: React.FC<PlayerNameModalProps> = ({
             <h3 className="text-xl font-semibold text-white mb-2">
               Spara ditt resultat!
             </h3>
-            <p className="text-gray-400 text-sm">
-              Ange ditt namn för att komma med på topplistan
-            </p>
+            <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
+              <Monitor className="w-4 h-4" />
+              <p>Ditt resultat sparas lokalt på denna enhet</p>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -182,9 +183,12 @@ const PlayerNameModal: React.FC<PlayerNameModalProps> = ({
             </div>
           </form>
 
-          <p className="text-gray-500 text-xs text-center mt-4">
-            Ditt namn visas på den offentliga topplistan
-          </p>
+          <div className="mt-4 text-center">
+            <div className="flex items-center justify-center space-x-2 text-gray-500 text-xs">
+              <Monitor className="w-3 h-3" />
+              <p>Resultatet visas på den lokala topplistan</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
